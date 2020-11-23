@@ -122,6 +122,18 @@ namespace clp
         }
     };
 
+    template <typename T>
+    concept SingleOption = requires(T option, std::string_view arg) {
+        {option.match(arg)} -> std::same_as<std::optional<std::string_view>>;
+        {option.parse_impl(arg)} ->std::same_as<std::optional<typename T::parse_result_type>>;
+    };
+
+    template <SingleOption Option>
+    constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>;
+
+    #define clp_Opt(type, var)
+
+
     template <typename Base>
     struct OptionInterface : public Base
     {
@@ -132,7 +144,7 @@ namespace clp
             return OptionInterface<WithDescription<Base>>(WithDescription<Base>{*this, description});
         }
 
-        constexpr OptionInterface<WithPattern<Base>> operator [] (std::string_view pattern) const noexcept 
+        constexpr OptionInterface<WithPattern<Base>> operator [] (std::string_view pattern) const noexcept
         {
             return OptionInterface<WithPattern<Base>>(WithPattern<Base>(*this, pattern));
         }
@@ -153,27 +165,20 @@ namespace clp
             return OptionInterface<WithCheck<Base, Predicate>>(WithCheck<Base, Predicate>(*this, predicate, error_message));
         }
     };
+    
+    namespace detail
+    {
+        template <typename T>
+        using get_parse_result_type = typename T::parse_result_type;
+    }
 
-    template <typename T>
-    concept SingleOption = requires(T option, std::string_view arg) {
-        {option.match(arg)} -> std::same_as<std::optional<std::string_view>>;
-        {option.parse_impl(arg)} ->std::same_as<std::optional<typename T::parse_result_type>>;
-    };
-
-    template <SingleOption Option>
-    constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>;
-
-    #define clp_Opt(type, var)
-
-    template <typename T>
-    using get_parse_result_type = typename T::parse_result_type;
 
     template <SingleOption ... Options>
     struct Compound : private Options...
     {
         constexpr explicit Compound(Options... options) : Options(options)... {}
 
-        struct parse_result_type : public get_parse_result_type<Options>... {};
+        struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
         template <SingleOption T>
         constexpr T const & access_option() const noexcept
@@ -206,7 +211,7 @@ namespace clp
     template <Parser ... Subparsers>
     struct Commands : private Command<Subparsers>...
     {
-        using parse_result_type = std::variant<get_parse_result_type<Subparsers>...>;
+        using parse_result_type = std::variant<detail::get_parse_result_type<Subparsers>...>;
 
         constexpr explicit Commands(Command<Subparsers>... commands) noexcept : Command<Subparsers>(commands)... {}
 
