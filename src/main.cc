@@ -338,7 +338,7 @@ TEST_CASE("Combining several parsers in commands")
     }
 }
 
-TEST_CASE("Implicit value allows for setting implicitly to a given value if the option is mentioned but no value is assigned")
+TEST_CASE("Implicit value allows for setting a value implicitly to an option if the option is mentioned but no value is assigned")
 {
     auto const cli = clp_Opt(bool, some_flag)["--flag"]
         ("Example boolean flag that defaults to false but is implicitly true when mentioned.")
