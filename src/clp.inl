@@ -30,7 +30,7 @@ namespace clp
     }
 
     #undef clp_Opt
-    #define clp_Opt(type, var) clp::Option<std::remove_pointer_t<decltype([](){                             \
+    #define clp_Opt(type, var) clp::OptionInterface(clp::Option<std::remove_pointer_t<decltype([](){        \
         struct OptionTypeImpl                                                                               \
         {                                                                                                   \
             using value_type = type;                                                                        \
@@ -38,7 +38,7 @@ namespace clp
             constexpr type const & _get() const noexcept { return var; }                                    \
         };                                                                                                  \
         return static_cast<OptionTypeImpl *>(nullptr);                                                      \
-    }())>>(#type)
+    }())>>(#type))
 
     template <SingleOption ... Options>
     constexpr auto parse(Compound<Options...> const & parser, int argc, char const * const argv[]) noexcept

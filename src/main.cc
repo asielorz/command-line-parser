@@ -373,4 +373,10 @@ TEST_CASE("Implicit value allows for setting a value implicitly to an option if 
         REQUIRE(options.has_value());
         REQUIRE(options->some_flag == false);
     }
+    SECTION("Fail to parse")
+    {
+        auto const options = tests::parse(cli, { "--flag=quux" });
+
+        REQUIRE(!options.has_value());
+    }
 }

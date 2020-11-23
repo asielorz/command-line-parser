@@ -27,12 +27,6 @@ namespace clp
             return validation_predicate(t._get());
         }
 
-        template <typename OtherPredicate>
-        constexpr WithCheck<WithCheck<Base, Predicate>, OtherPredicate> check(OtherPredicate other_predicate, std::string_view other_error_message) const noexcept
-        {
-            return WithCheck<WithCheck<Base, Predicate>, OtherPredicate>(*this, other_predicate, other_error_message);
-        }
-
     private:
         Predicate validation_predicate;
         std::string_view error_message;
@@ -44,12 +38,6 @@ namespace clp
         constexpr explicit WithImplicitValue(Base base, typename Base::value_type implicit_value_) noexcept : Base(base), implicit_value(std::move(implicit_value_)) {}
 
         typename Base::value_type implicit_value;
-
-        template <typename Predicate>
-        constexpr WithCheck<WithImplicitValue<Base>, Predicate> check(Predicate predicate, std::string_view error_message) const noexcept
-        {
-            return WithCheck<WithImplicitValue<Base>, Predicate>(*this, predicate, error_message);
-        }
     };
 
     template <typename T>
@@ -63,17 +51,6 @@ namespace clp
         constexpr explicit WithDefaultValue(Base base, typename Base::value_type default_value_) noexcept : Base(base), default_value(std::move(default_value_)) {}
 
         typename Base::value_type default_value;
-
-        constexpr WithImplicitValue<WithDefaultValue<Base>> implicitly(typename Base::value_type implicit_value) const noexcept
-        {
-            return WithImplicitValue<WithDefaultValue<Base>>(*this, std::move(implicit_value));
-        }
-
-        template <typename Predicate>
-        constexpr WithCheck<WithDefaultValue<Base>, Predicate> check(Predicate predicate, std::string_view error_message) const noexcept
-        {
-            return WithCheck<WithDefaultValue<Base>, Predicate>(*this, predicate, error_message);
-        }
     };
 
     template <typename T>
@@ -85,24 +62,11 @@ namespace clp
     struct WithDescription : public Base
     {
         std::string_view description;
+    };
 
-        constexpr void operator () (std::string_view) const noexcept = delete;
-
-        constexpr WithDefaultValue<WithDescription<Base>> default_to(typename Base::value_type default_value) const noexcept
-        {
-            return WithDefaultValue<WithDescription<Base>>(*this, std::move(default_value));
-        }
-
-        constexpr WithImplicitValue<WithDescription<Base>> implicitly(typename Base::value_type implicit_value) const noexcept
-        {
-            return WithImplicitValue<WithDescription<Base>>(*this, std::move(implicit_value));
-        }
-
-        template <typename Predicate>
-        constexpr WithCheck<WithDescription<Base>, Predicate> check(Predicate predicate, std::string_view error_message) const noexcept
-        {
-            return WithCheck<WithDescription<Base>, Predicate>(*this, predicate, error_message);
-        }
+    template <typename T>
+    concept HasDescription = requires(T option) {
+        {option.description} -> std::same_as<std::string_view>;
     };
 
     template <typename T>
@@ -133,9 +97,6 @@ namespace clp
             return std::nullopt;
         }
 
-        constexpr WithDescription<WithPattern<Base>> operator () (std::string_view description) const noexcept { return WithDescription<WithPattern<Base>>{*this, description}; }
-        constexpr WithPattern<WithPattern<Base>> operator [] (std::string_view extra_pattern) const noexcept { return WithPattern<WithPattern<Base>>(*this, extra_pattern); };
-
     private:
         std::string_view pattern;
     };
@@ -159,9 +120,38 @@ namespace clp
             else
                 return std::nullopt;
         }
+    };
 
-        constexpr WithDescription<Option<T>> operator () (std::string_view description) const noexcept { return WithDescription<Option<T>>{*this, description}; }
-        constexpr WithPattern<Option<T>> operator [] (std::string_view pattern) const noexcept { return WithPattern<Option<T>>(*this, pattern); }
+    template <typename Base>
+    struct OptionInterface : public Base
+    {
+        explicit constexpr OptionInterface(Base base) noexcept : Base(base) {}
+
+        constexpr OptionInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
+        {
+            return OptionInterface<WithDescription<Base>>(WithDescription<Base>{*this, description});
+        }
+
+        constexpr OptionInterface<WithPattern<Base>> operator [] (std::string_view pattern) const noexcept 
+        {
+            return OptionInterface<WithPattern<Base>>(WithPattern<Base>(*this, pattern));
+        }
+
+        constexpr OptionInterface<WithDefaultValue<Base>> default_to(typename Base::value_type default_value) const noexcept requires(!HasDefaultValue<Base>)
+        {
+            return OptionInterface<WithDefaultValue<Base>>(WithDefaultValue<Base>(*this, std::move(default_value)));
+        }
+
+        constexpr OptionInterface<WithImplicitValue<Base>> implicitly(typename Base::value_type implicit_value) const noexcept requires(!HasImplicitValue<Base>)
+        {
+            return OptionInterface<WithImplicitValue<Base>>(WithImplicitValue<Base>(*this, std::move(implicit_value)));
+        }
+
+        template <typename Predicate>
+        constexpr OptionInterface<WithCheck<Base, Predicate>> check(Predicate predicate, std::string_view error_message) const noexcept
+        {
+            return OptionInterface<WithCheck<Base, Predicate>>(WithCheck<Base, Predicate>(*this, predicate, error_message));
+        }
     };
 
     template <typename T>
