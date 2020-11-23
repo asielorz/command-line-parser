@@ -159,8 +159,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\catch2\catch.hpp" />
-    <ClInclude Include="src\cli.hh" />
+    <ClInclude Include="src\clp.hh" />
     <ClInclude Include="src\parse_traits.hh" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\clp.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -1,17 +1,17 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch2/catch.hpp"
 
-#include "cli.hh"
+#include "clp.hh"
 #include <typeinfo>
 
 namespace tests
 {
-    template <Parser P>
+    template <clp::Parser P>
     constexpr auto parse(P parser, std::initializer_list<char const *> args) noexcept
     {
         int const argc = int(args.size());
         auto const argv = std::data(args);
-        return parser.parse(argc, argv);
+        return clp::parse(parser, argc, argv);
     }
 }
 
@@ -25,7 +25,7 @@ int main()
 TEST_CASE("Single argument CLI")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels");
 
@@ -60,7 +60,7 @@ TEST_CASE("Single argument CLI")
 TEST_CASE("Multiple patterns for an option")
 {
     constexpr auto cli =
-            Opt(int, width)
+            clp_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels");
 
@@ -89,7 +89,7 @@ TEST_CASE("Multiple patterns for an option")
 TEST_CASE("Default value for a pattern")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .default_to(1920);
@@ -113,7 +113,7 @@ TEST_CASE("Default value for a pattern")
 TEST_CASE("Checks on a pattern that can make it fail even when found")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .check([](int width) { return width > 0; }, "Width cannot be negative.");
@@ -139,10 +139,10 @@ TEST_CASE("Checks on a pattern that can make it fail even when found")
     }
 }
 
-TEST_CASE("Multiple options")
+TEST_CASE("Multiple checks")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .check([](int width) { return width > 0; }, "Width cannot be negative.")
@@ -172,10 +172,10 @@ TEST_CASE("Multiple options")
 TEST_CASE("Combining two options in a compound parser")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels")
-        | Opt(int, height)
+        | clp_Opt(int, height)
             ["-h"]["--height"]
             ("Height of the screen in pixels");
 
@@ -226,13 +226,13 @@ TEST_CASE("Combining two options in a compound parser")
 TEST_CASE("Combining three options in a compound parser where one is defaulted")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels")
-        | Opt(int, height)
+        | clp_Opt(int, height)
             ["-h"]["--height"]
             ("Height of the screen in pixels")
-        | Opt(bool, fullscreen)
+        | clp_Opt(bool, fullscreen)
             ["--fullscreen"]
             ("Whether or not the program should start in fullscreen")
             .default_to(false);
@@ -269,32 +269,37 @@ TEST_CASE("Combining three options in a compound parser where one is defaulted")
     }
 }
 
-// Note to self. May need refactor.
-/*TEST_CASE("Defaulted value fails to parse")
+TEST_CASE("Defaulted value fails to parse")
 {
     constexpr auto cli =
-        Opt(int, width)
+        clp_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .default_to(1920);
 
-    auto const options = tests::parse(cli, {"-w=30"});
+    auto const options = tests::parse(cli, {"-w=foo"});
 
     REQUIRE(!options.has_value());
-}*/
+}
 
 TEST_CASE("Combining several parsers in commands")
 {
+    using clp::Command;
+
     constexpr auto cli = 
         Command("open-window", 
-            Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            Opt(int, height)["-h"]["--height"]("Height of the screen")
+            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        & Command("fetch-url", 
-            Opt(std::string, url)["--url"]("Url to fetch") |
-            Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
+        | Command("fetch-url", 
+            clp_Opt(std::string, url)["--url"]("Url to fetch") |
+            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
         );
+        
+    int argc = 0;
+    char const * const * argv = nullptr;
+    clp::parse(cli, argc, argv);
 
     SECTION("First command")
     {

@@ -26,8 +26,13 @@
     <ClInclude Include="src\catch2\catch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\cli.hh">
+    <ClInclude Include="src\clp.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="src\clp.inl">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
 </Project>
