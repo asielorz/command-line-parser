@@ -380,3 +380,34 @@ TEST_CASE("Implicit value allows for setting a value implicitly to an option if 
         REQUIRE(!options.has_value());
     }
 }
+
+TEST_CASE("Printing output without word wrap and without commands")
+{
+    constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
+            ("Width of the screen in pixels.")
+            .default_to(1920)
+        | clp_Opt(int, height)["-h"]["--height"]
+            ("Height of the screen in pixels.")
+            .default_to(1080)
+        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            ("Whether to start the application in fullscreen or not.")
+            .default_to(false)
+            .implicitly(true)
+        | clp_Opt(std::string, starting_level) ["--starting-level"]
+            ("Level to open in the editor.");
+
+    std::string const str = clp::to_string(cli);
+
+    constexpr auto expected =
+        "-w, --width <int>                       Width of the screen in pixels.\n"
+        "                                        By default: 1920\n"
+        "-h, --height <int>                      Height of the screen in pixels.\n"
+        "                                        By default: 1080\n"
+        "--fullscreen <bool>                     Whether to start the application in fullscreen or not.\n"
+        "                                        By default: false\n"
+        "                                        Implicitly: true\n"
+        "--starting-level <std::string>          Level to open in the editor.\n"
+    ;
+
+    REQUIRE(str == expected);
+}

@@ -66,7 +66,7 @@ namespace clp
 
     template <typename T>
     concept HasDescription = requires(T option) {
-        {option.description} -> std::same_as<std::string_view>;
+        {option.description} -> std::convertible_to<std::string_view>;
     };
 
     template <typename T>
@@ -95,6 +95,20 @@ namespace clp
             }
 
             return std::nullopt;
+        }
+
+        std::string patterns_to_string() const
+        {
+            std::string out;
+
+            if constexpr (Pattern<Base>)
+            {
+                out = Base::patterns_to_string();
+                out += ", ";
+            }
+
+            out += pattern;
+            return out;
         }
 
     private:
@@ -230,6 +244,12 @@ namespace clp
     template <Parser ... A, Parser B> constexpr Commands<A..., B> operator | (Commands<A...> a, Command<B> b) noexcept;
     template <Parser A, Parser ... B> constexpr Commands<A, B...> operator | (Command<A> a, Commands<B...> b) noexcept;
     template <Parser ... A, Parser ... B> constexpr Commands<A..., B...> operator | (Commands<A...> a, Commands<B...> b) noexcept;
+
+    template <SingleOption Option>
+    std::string to_string(Option const & option) requires HasDescription<Option>;
+
+    template <SingleOption ... Options>
+    std::string to_string(Compound<Options...> const & parser);
 
 } // namespace clp
 

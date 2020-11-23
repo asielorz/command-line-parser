@@ -139,4 +139,42 @@ namespace clp
         return Commands<A..., B...>(a.template access_subparser<A>()..., b.template access_subparser<B>()...);
     }
 
+    template <SingleOption Option>
+    std::string to_string(Option const & option) requires HasDescription<Option>
+    {
+        constexpr int column_width = 40;
+
+        std::string out = option.patterns_to_string();
+        out += " <";
+        out += option.type_name;
+        out += ">";
+        while (out.size() < column_width) out.push_back(' ');
+        out += option.description;
+
+        if constexpr (HasDefaultValue<Option>)
+        {
+            out += '\n';
+            for (int i = 0; i < column_width; ++i) out.push_back(' ');
+            out += "By default: ";
+            out += ::to_string(option.default_value);
+        }
+
+        if constexpr (HasImplicitValue<Option>)
+        {
+            out += '\n';
+            for (int i = 0; i < column_width; ++i) out.push_back(' ');
+            out += "Implicitly: ";
+            out += ::to_string(option.implicit_value);
+        }
+
+        out += '\n';
+        return out;
+    }
+
+    template <SingleOption ... Options>
+    std::string to_string(Compound<Options...> const & parser)
+    {
+        return (to_string(parser.template access_option<Options>()) + ...);
+    }
+
 } // namespace clp
