@@ -9,6 +9,10 @@ namespace clp
             std::optional<std::string_view> const matched = option.match(argv[i]);
             if (matched)
             {
+                if constexpr (HasImplicitValue<Option>)
+                    if (matched->empty())
+                        return typename Option::parse_result_type{option.implicit_value};
+
                 auto parse_result = option.parse_impl(*matched);
 
                 if constexpr (HasValidationCheck<Option>)
@@ -20,7 +24,7 @@ namespace clp
         }
 
         if constexpr (HasDefaultValue<Option>)
-            return typename Option::parse_result_type{ option.default_value };
+            return typename Option::parse_result_type{option.default_value};
         else
             return std::nullopt;
     }

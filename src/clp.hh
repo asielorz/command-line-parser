@@ -39,17 +39,41 @@ namespace clp
     };
 
     template <typename Base>
+    struct WithImplicitValue : public Base
+    {
+        constexpr explicit WithImplicitValue(Base base, typename Base::value_type implicit_value_) noexcept : Base(base), implicit_value(std::move(implicit_value_)) {}
+
+        typename Base::value_type implicit_value;
+
+        template <typename Predicate>
+        constexpr WithCheck<WithImplicitValue<Base>, Predicate> check(Predicate predicate, std::string_view error_message) const noexcept
+        {
+            return WithCheck<WithImplicitValue<Base>, Predicate>(*this, predicate, error_message);
+        }
+    };
+
+    template <typename T>
+    concept HasImplicitValue = requires(T option) {
+        {option.implicit_value} -> std::convertible_to<typename T::value_type>;
+    };
+
+    template <typename Base>
     struct WithDefaultValue : public Base
     {
         constexpr explicit WithDefaultValue(Base base, typename Base::value_type default_value_) noexcept : Base(base), default_value(std::move(default_value_)) {}
+
+        typename Base::value_type default_value;
+
+        constexpr WithImplicitValue<WithDefaultValue<Base>> implicitly(typename Base::value_type implicit_value) const noexcept
+        {
+            return WithImplicitValue<WithDefaultValue<Base>>(*this, std::move(implicit_value));
+        }
 
         template <typename Predicate>
         constexpr WithCheck<WithDefaultValue<Base>, Predicate> check(Predicate predicate, std::string_view error_message) const noexcept
         {
             return WithCheck<WithDefaultValue<Base>, Predicate>(*this, predicate, error_message);
         }
-
-        typename Base::value_type default_value;
     };
 
     template <typename T>
@@ -67,6 +91,11 @@ namespace clp
         constexpr WithDefaultValue<WithDescription<Base>> default_to(typename Base::value_type default_value) const noexcept
         {
             return WithDefaultValue<WithDescription<Base>>(*this, std::move(default_value));
+        }
+
+        constexpr WithImplicitValue<WithDescription<Base>> implicitly(typename Base::value_type implicit_value) const noexcept
+        {
+            return WithImplicitValue<WithDescription<Base>>(*this, std::move(implicit_value));
         }
 
         template <typename Predicate>
@@ -93,10 +122,15 @@ namespace clp
                     return matched;
             }
 
-            if (text.starts_with(pattern) && text[pattern.size()] == '=')
-                return text.substr(pattern.size() + 1);
-            else
-                return std::nullopt;
+            if (text.starts_with(pattern))
+            {
+                if (text.size() == pattern.size())
+                    return "";
+                else if (text[pattern.size()] == '=')
+                    return text.substr(pattern.size() + 1);
+            }
+
+            return std::nullopt;
         }
 
         constexpr WithDescription<WithPattern<Base>> operator () (std::string_view description) const noexcept { return WithDescription<WithPattern<Base>>{*this, description}; }

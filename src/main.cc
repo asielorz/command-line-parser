@@ -337,3 +337,40 @@ TEST_CASE("Combining several parsers in commands")
         REQUIRE(!options.has_value());
     }
 }
+
+TEST_CASE("Implicit value allows for setting implicitly to a given value if the option is mentioned but no value is assigned")
+{
+    auto const cli = clp_Opt(bool, some_flag)["--flag"]
+        ("Example boolean flag that defaults to false but is implicitly true when mentioned.")
+        .default_to(false)
+        .implicitly(true);
+
+    SECTION("Not found. Default, so false")
+    {
+        auto const options = tests::parse(cli, {});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == false);
+    }
+    SECTION("Mentioned but no value assigned. Implicit value, so true")
+    {
+        auto const options = tests::parse(cli, {"--flag"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == true);
+    }
+    SECTION("Explicitly true")
+    {
+        auto const options = tests::parse(cli, {"--flag=true"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == true);
+    }
+    SECTION("Explicitly false")
+    {
+        auto const options = tests::parse(cli, {"--flag=false"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == false);
+    }
+}
