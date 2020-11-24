@@ -186,7 +186,6 @@ namespace clp
         using get_parse_result_type = typename T::parse_result_type;
     }
 
-
     template <SingleOption ... Options>
     struct Compound : private Options...
     {
@@ -216,49 +215,56 @@ namespace clp
     template <Parser P>
     struct Command
     {
+        using parse_result_type = typename P::parse_result_type;
+
         explicit constexpr Command(std::string_view name_, P parser_) noexcept : name(name_), parser(parser_) {}
+
+        constexpr bool match(std::string_view text) const noexcept { return text == name; }
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept;
 
         std::string_view name;
         P parser;
     };
 
-    template <Parser ... Subparsers>
-    struct Commands : private Command<Subparsers>...
+    template <typename T>
+    concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv) 
     {
-        using parse_result_type = std::variant<detail::get_parse_result_type<Subparsers>...>;
+        {t.match(text)} -> std::same_as<bool>;
+        {t.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>;
+    };
 
-        constexpr explicit Commands(Command<Subparsers>... commands) noexcept : Command<Subparsers>(commands)... {}
+    template <CommandType ... Commands>
+    struct CommandSelector : private Commands...
+    {
+        using parse_result_type = std::variant<detail::get_parse_result_type<Commands>...>;
 
-        template <Parser T>
-        constexpr Command<T> const & access_subparser() const noexcept
+        constexpr explicit CommandSelector(Commands... commands) noexcept : Commands(commands)... {}
+
+        template <CommandType C>
+        constexpr C const & access_command() const noexcept
         {
-            return static_cast<Command<T> const &>(*this);
+            return static_cast<C const &>(*this);
         }
     };
 
-    template <Parser ... Subparsers>
-    constexpr auto parse(Commands<Subparsers...> const & commands, int argc, char const * const argv[]) noexcept
-        -> std::optional<typename Commands<Subparsers...>::parse_result_type>;
+    template <CommandType ... Commands>
+    constexpr auto parse(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
+        -> std::optional<typename CommandSelector<Commands...>::parse_result_type>;
 
-    struct ShowHelp
+    struct ShowHelp {};
+
+    struct Help
     {
-        struct HelpParser
-        {
-            using parse_result_type = ShowHelp;
-        };
+        using parse_result_type = ShowHelp;
+
+        constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?"; }
+        constexpr std::optional<ShowHelp> parse(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
     };
 
-    struct HelpCommand : public Command<ShowHelp::HelpParser>
-    {
-        constexpr explicit HelpCommand() noexcept : Command<ShowHelp::HelpParser>("--help", ShowHelp::HelpParser()) {}
-    };
-
-    constexpr auto parse(ShowHelp::HelpParser const &, int argc, char const * const argv[]) noexcept -> std::optional<ShowHelp>;
-
-    template <Parser A, Parser B>     constexpr Commands<A, B> operator | (Command<A> a, Command<B> b) noexcept;
-    template <Parser ... A, Parser B> constexpr Commands<A..., B> operator | (Commands<A...> a, Command<B> b) noexcept;
-    template <Parser A, Parser ... B> constexpr Commands<A, B...> operator | (Command<A> a, Commands<B...> b) noexcept;
-    template <Parser ... A, Parser ... B> constexpr Commands<A..., B...> operator | (Commands<A...> a, Commands<B...> b) noexcept;
+    template <CommandType A, CommandType B>     constexpr CommandSelector<A, B> operator | (A a, B b) noexcept;
+    template <CommandType ... A, CommandType B> constexpr CommandSelector<A..., B> operator | (CommandSelector<A...> a, B b) noexcept;
+    template <CommandType A, CommandType ... B> constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept;
+    template <CommandType ... A, CommandType ... B> constexpr CommandSelector<A..., B...> operator | (CommandSelector<A...> a, CommandSelector<B...> b) noexcept;
 
     template <SingleOption Option>
     std::string to_string(Option const & option) requires HasDescription<Option>;

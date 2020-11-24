@@ -431,15 +431,45 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
         )
-        | clp::HelpCommand();
+        | clp::Help();
 
     constexpr auto visitor = overload(
         [](clp::ShowHelp) { return true; },
         [](auto const &) { return false; }
     );
 
-    auto const options = tests::parse(cli, {"--help"});
+    SECTION("Match --help")
+    {
+        auto const options = tests::parse(cli, {"--help"});
 
-    REQUIRE(options.has_value());
-    REQUIRE(std::visit(visitor, *options));
+        REQUIRE(options.has_value());
+        REQUIRE(std::visit(visitor, *options));
+    }
+    SECTION("Match -h")
+    {
+        auto const options = tests::parse(cli, {"-h"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(std::visit(visitor, *options));
+    }
+    SECTION("Match -?")
+    {
+        auto const options = tests::parse(cli, {"-?"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(std::visit(visitor, *options));
+    }
+    SECTION("Match something else")
+    {
+        auto const options = tests::parse(cli, {"open-window", "-w=10", "-h=6"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(!std::visit(visitor, *options));
+    }
+    SECTION("Match nothing")
+    {
+        auto const options = tests::parse(cli, {"make-snafucated"});
+
+        REQUIRE(!options.has_value());
+    }
 }

@@ -82,14 +82,14 @@ namespace clp
 
     namespace detail
     {
-        template <Parser Next, Parser ... Rest, Parser ... Subparsers>
-        constexpr auto parse_impl(Commands<Subparsers...> const & commands, int argc, char const * const argv[]) noexcept
-            -> std::optional<typename Commands<Subparsers...>::parse_result_type>
+        template <CommandType Next, CommandType ... Rest, CommandType ... Commands>
+        constexpr auto parse_impl(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
+            -> std::optional<typename CommandSelector<Commands...>::parse_result_type>
         {
-            Command<Next> const & next = commands.access_subparser<Next>();
-            if (next.name == argv[0])
+            Next const & next = commands.access_command<Next>();
+            if (next.match(argv[0]))
             {
-                auto result = clp::parse(next.parser, argc - 1, argv + 1);
+                auto result = next.parse(argc, argv);
                 if (!result)
                     return std::nullopt;
                 else
@@ -105,44 +105,44 @@ namespace clp
         }
     }
 
-    template <Parser ... Subparsers>
-    constexpr auto parse(Commands<Subparsers...> const & commands, int argc, char const * const argv[]) noexcept
-        -> std::optional<typename Commands<Subparsers...>::parse_result_type>
+    template <CommandType ... Commands>
+    constexpr auto parse(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
+        -> std::optional<typename CommandSelector<Commands...>::parse_result_type>
     {
         if (argc <= 0)
             return std::nullopt;
 
-        return clp::detail::parse_impl<Subparsers...>(commands, argc, argv);
+        return clp::detail::parse_impl<Commands...>(commands, argc, argv);
     }
 
-    constexpr auto parse(ShowHelp::HelpParser const &, int argc, char const * const argv[]) noexcept -> std::optional<ShowHelp>
-    {
-        static_cast<void>(argc, argv);
-        return ShowHelp();
+    template <Parser P>
+    constexpr auto Command<P>::parse(int argc, char const * const argv[]) const noexcept
+    { 
+        return clp::parse(parser, argc - 1, argv + 1);
     }
 
-    template <Parser A, Parser B>
-    constexpr Commands<A, B> operator | (Command<A> a, Command<B> b) noexcept
+    template <CommandType A, CommandType B>
+    constexpr CommandSelector<A, B> operator | (A a, B b) noexcept
     {
-        return Commands<A, B>(a, b);
+        return CommandSelector<A, B>(a, b);
     }
 
-    template <Parser ... A, Parser B>
-    constexpr Commands<A..., B> operator | (Commands<A...> a, Command<B> b) noexcept
+    template <CommandType ... A, CommandType B>
+    constexpr CommandSelector<A..., B> operator | (CommandSelector<A...> a, B b) noexcept
     {
-        return Commands<A..., B>(a.template access_subparser<A>()..., b);
+        return CommandSelector<A..., B>(a.template access_command<A>()..., b);
     }
 
-    template <Parser A, Parser ... B>
-    constexpr Commands<A, B...> operator | (Command<A> a, Commands<B...> b) noexcept
+    template <CommandType A, CommandType ... B>
+    constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept
     {
-        return Commands<A, B...>(a, b.template access_subparser<B>()...);
+        return CommandSelector<A, B...>(a, b.template access_command<B>()...);
     }
 
-    template <Parser ... A, Parser ... B>
-    constexpr Commands<A..., B...> operator | (Commands<A...> a, Commands<B...> b) noexcept
+    template <CommandType ... A, CommandType ... B>
+    constexpr CommandSelector<A..., B...> operator | (CommandSelector<A...> a, CommandSelector<B...> b) noexcept
     {
-        return Commands<A..., B...>(a.template access_subparser<A>()..., b.template access_subparser<B>()...);
+        return CommandSelector<A..., B...>(a.template access_command<A>()..., b.template access_command<B>()...);
     }
 
     template <SingleOption Option>
