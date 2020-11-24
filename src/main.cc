@@ -381,7 +381,7 @@ TEST_CASE("Implicit value allows for setting a value implicitly to an option if 
     }
 }
 
-TEST_CASE("Printing output without word wrap and without commands")
+TEST_CASE("Printing help without word wrap and without commands")
 {
     constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
@@ -410,4 +410,36 @@ TEST_CASE("Printing output without word wrap and without commands")
     ;
 
     REQUIRE(str == expected);
+}
+
+template <typename ... Ts>
+struct overload : public Ts...
+{
+    constexpr explicit overload(Ts ... ts) noexcept : Ts(ts)... {}
+    using Ts::operator()...;
+};
+
+TEST_CASE("Help command creates a command that matches --help and indicates the user code that it should print the help")
+{
+    constexpr auto cli = 
+        clp::Command("open-window", 
+            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        )
+        | clp::Command("fetch-url",
+            clp_Opt(std::string, url)["--url"]("Url to fetch") |
+            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
+        )
+        | clp::HelpCommand();
+
+    constexpr auto visitor = overload(
+        [](clp::ShowHelp) { return true; },
+        [](auto const &) { return false; }
+    );
+
+    auto const options = tests::parse(cli, {"--help"});
+
+    REQUIRE(options.has_value());
+    REQUIRE(std::visit(visitor, *options));
 }

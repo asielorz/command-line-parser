@@ -115,6 +115,12 @@ namespace clp
         return clp::detail::parse_impl<Subparsers...>(commands, argc, argv);
     }
 
+    constexpr auto parse(ShowHelp::HelpParser const &, int argc, char const * const argv[]) noexcept -> std::optional<ShowHelp>
+    {
+        static_cast<void>(argc, argv);
+        return ShowHelp();
+    }
+
     template <Parser A, Parser B>
     constexpr Commands<A, B> operator | (Command<A> a, Command<B> b) noexcept
     {

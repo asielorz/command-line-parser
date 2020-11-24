@@ -240,6 +240,21 @@ namespace clp
     constexpr auto parse(Commands<Subparsers...> const & commands, int argc, char const * const argv[]) noexcept
         -> std::optional<typename Commands<Subparsers...>::parse_result_type>;
 
+    struct ShowHelp
+    {
+        struct HelpParser
+        {
+            using parse_result_type = ShowHelp;
+        };
+    };
+
+    struct HelpCommand : public Command<ShowHelp::HelpParser>
+    {
+        constexpr explicit HelpCommand() noexcept : Command<ShowHelp::HelpParser>("--help", ShowHelp::HelpParser()) {}
+    };
+
+    constexpr auto parse(ShowHelp::HelpParser const &, int argc, char const * const argv[]) noexcept -> std::optional<ShowHelp>;
+
     template <Parser A, Parser B>     constexpr Commands<A, B> operator | (Command<A> a, Command<B> b) noexcept;
     template <Parser ... A, Parser B> constexpr Commands<A..., B> operator | (Commands<A...> a, Command<B> b) noexcept;
     template <Parser A, Parser ... B> constexpr Commands<A, B...> operator | (Command<A> a, Commands<B...> b) noexcept;
