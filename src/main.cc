@@ -340,7 +340,7 @@ TEST_CASE("Combining several parsers in commands")
 
 TEST_CASE("Implicit value allows for setting a value implicitly to an option if the option is mentioned but no value is assigned")
 {
-    auto const cli = clp_Opt(bool, some_flag)["--flag"]
+    constexpr auto cli = clp_Opt(bool, some_flag)["--flag"]
         ("Example boolean flag that defaults to false but is implicitly true when mentioned.")
         .default_to(false)
         .implicitly(true);
@@ -476,7 +476,7 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
 
 TEST_CASE("A flag is a boolean option that is by default false and implicitly true")
 {
-    auto const cli = clp_Flag(some_flag)["--flag"]("Example flag.");
+    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.");
 
     SECTION("Not found. Default, so false")
     {
@@ -526,7 +526,7 @@ TEST_CASE("A custom parser may be given to an option")
             return std::nullopt;
     };
 
-    auto const cli = clp_Flag(some_flag)["--flag"]("Example flag.")
+    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
         .custom_parser(on_off_boolean_parser);
 
     SECTION("on -> true")
@@ -549,4 +549,15 @@ TEST_CASE("A custom parser may be given to an option")
 
         REQUIRE(!options.has_value());
     }
+}
+
+TEST_CASE("parse may be called at compile time")
+{
+    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
+        | clp_Opt(std::string_view, some_string)["--str"]("Some text");
+
+    constexpr auto options = tests::parse(cli, {"--flag", "--str=foo"});
+    STATIC_REQUIRE(options.has_value());
+    STATIC_REQUIRE(options->some_flag == true);
+    STATIC_REQUIRE(options->some_string == "foo");
 }

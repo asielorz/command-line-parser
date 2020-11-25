@@ -81,7 +81,7 @@ struct parse_traits<std::string>
 template <>
 struct parse_traits<std::string_view>
 {
-	static std::optional<std::string_view> parse(std::string_view text) noexcept
+	static constexpr std::optional<std::string_view> parse(std::string_view text) noexcept
 	{
 		return text;
 	}
