@@ -115,6 +115,27 @@ namespace clp
         std::string_view pattern;
     };
 
+    template <typename T, typename ValueType>
+    concept ParserFor = requires(T t, std::string_view text) { {t(text)} -> std::same_as<std::optional<ValueType>>; };
+
+    template <typename Base, ParserFor<typename Base::value_type> ParserFunction>
+    struct WithCustomParser : public Base
+    {
+        constexpr explicit WithCustomParser(Base base, ParserFunction parser_function) noexcept : Base(base), custom_parser(parser_function) {}
+
+        constexpr std::optional<typename Base::parse_result_type> parse_impl(std::string_view argument_text) const noexcept
+        {
+            std::optional<typename Base::value_type> value = custom_parser(argument_text);
+            if (value)
+                return typename Base::parse_result_type{std::move(*value)};
+            else
+                return std::nullopt;
+        }
+
+    private:
+        ParserFunction custom_parser;
+    };
+
     template <typename T>
     concept OptionStruct = requires(T a) { { a._get() } -> std::same_as<typename T::value_type const &>; };
 
@@ -126,7 +147,8 @@ namespace clp
 
         constexpr explicit Option(std::string_view type_name_) : type_name(type_name_) {}
         std::string_view type_name;
-        std::optional<T> parse_impl(std::string_view argument_text) const noexcept
+
+        constexpr std::optional<T> parse_impl(std::string_view argument_text) const noexcept
         {
             std::optional<value_type> value = parse_traits<value_type>::parse(argument_text);
             if (value)
@@ -146,7 +168,7 @@ namespace clp
     constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>;
 
     #define clp_Opt(type, var)
-
+    #define clp_Flag(var);
 
     template <typename Base>
     struct OptionInterface : public Base
@@ -177,6 +199,12 @@ namespace clp
         constexpr OptionInterface<WithCheck<Base, Predicate>> check(Predicate predicate, std::string_view error_message) const noexcept
         {
             return OptionInterface<WithCheck<Base, Predicate>>(WithCheck<Base, Predicate>(*this, predicate, error_message));
+        }
+
+        template <ParserFor<typename Base::value_type> ParserFunction>
+        constexpr OptionInterface<WithCustomParser<Base, ParserFunction>> custom_parser(ParserFunction parser_function) const noexcept
+        {
+            return OptionInterface<WithCustomParser<Base, ParserFunction>>(WithCustomParser<Base, ParserFunction>(*this, parser_function));
         }
     };
     

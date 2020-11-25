@@ -40,6 +40,9 @@ namespace clp
         return static_cast<OptionTypeImpl *>(nullptr);                                                      \
     }())>>(#type))
 
+    #undef clp_Flag
+    #define clp_Flag(var) clp_Opt(bool, var).default_to(false).implicitly(true)
+
     template <SingleOption ... Options>
     constexpr auto parse(Compound<Options...> const & parser, int argc, char const * const argv[]) noexcept
     {

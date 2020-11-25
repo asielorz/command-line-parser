@@ -473,3 +473,80 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
         REQUIRE(!options.has_value());
     }
 }
+
+TEST_CASE("A flag is a boolean option that is by default false and implicitly true")
+{
+    auto const cli = clp_Flag(some_flag)["--flag"]("Example flag.");
+
+    SECTION("Not found. Default, so false")
+    {
+        auto const options = tests::parse(cli, {});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == false);
+    }
+    SECTION("Mentioned but no value assigned. Implicit value, so true")
+    {
+        auto const options = tests::parse(cli, { "--flag" });
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == true);
+    }
+    SECTION("Explicitly true")
+    {
+        auto const options = tests::parse(cli, { "--flag=true" });
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == true);
+    }
+    SECTION("Explicitly false")
+    {
+        auto const options = tests::parse(cli, { "--flag=false" });
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == false);
+    }
+    SECTION("Fail to parse")
+    {
+        auto const options = tests::parse(cli, { "--flag=quux" });
+
+        REQUIRE(!options.has_value());
+    }
+}
+
+TEST_CASE("A custom parser may be given to an option")
+{
+    constexpr auto on_off_boolean_parser = [](std::string_view text) noexcept -> std::optional<bool>
+    {
+        if (text == "on")
+            return true;
+        else if (text == "off")
+            return false;
+        else
+            return std::nullopt;
+    };
+
+    auto const cli = clp_Flag(some_flag)["--flag"]("Example flag.")
+        .custom_parser(on_off_boolean_parser);
+
+    SECTION("on -> true")
+    {
+        auto const options = tests::parse(cli, {"--flag=on"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == true);
+    }
+    SECTION("off -> false")
+    {
+        auto const options = tests::parse(cli, {"--flag=off"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->some_flag == false);
+    }
+    SECTION("Fail to parse. Default parser is not used so true is not a valid parser for bool anymore.")
+    {
+        auto const options = tests::parse(cli, {"--flag=true"});
+
+        REQUIRE(!options.has_value());
+    }
+}
