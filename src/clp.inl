@@ -48,12 +48,12 @@ namespace clp
     {
         using parse_result_type = typename Compound<Options...>::parse_result_type;
 
-        return[...opts = parse(parser.access_option<Options>(), argc, argv)]() noexcept -> std::optional<parse_result_type>
+        return [...opts = parse(parser.access_option<Options>(), argc, argv)]() mutable noexcept -> std::optional<parse_result_type>
         {
             if (!(opts && ...))
                 return std::nullopt;
             else
-                return parse_result_type{ std::move(*opts)... };
+                return parse_result_type{std::move(*opts)...};
         }();
     }
 
