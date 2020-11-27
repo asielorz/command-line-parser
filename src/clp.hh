@@ -8,6 +8,9 @@
 namespace clp
 {
 
+    template <typename From, typename To>
+    concept explicitly_convertible_to = requires(From const from) { static_cast<To>(from); };
+
     template <typename T>
     concept HasValidationCheck = requires(T option, typename T::parse_result_type parse_result) {
         {option.validate(parse_result)} -> std::same_as<bool>;
@@ -32,30 +35,30 @@ namespace clp
         std::string_view error_message;
     };
 
-    template <typename Base>
+    template <typename Base, explicitly_convertible_to<typename Base::value_type> T>
     struct WithImplicitValue : public Base
     {
-        constexpr explicit WithImplicitValue(Base base, typename Base::value_type implicit_value_) noexcept : Base(base), implicit_value(std::move(implicit_value_)) {}
+        constexpr explicit WithImplicitValue(Base base, T implicit_value_) noexcept : Base(base), implicit_value(std::move(implicit_value_)) {}
 
-        typename Base::value_type implicit_value;
+        T implicit_value;
     };
 
     template <typename T>
     concept HasImplicitValue = requires(T option) {
-        {option.implicit_value} -> std::convertible_to<typename T::value_type>;
+        {option.implicit_value} -> explicitly_convertible_to<typename T::value_type>;
     };
 
-    template <typename Base>
+    template <typename Base, explicitly_convertible_to<typename Base::value_type> T>
     struct WithDefaultValue : public Base
     {
-        constexpr explicit WithDefaultValue(Base base, typename Base::value_type default_value_) noexcept : Base(base), default_value(std::move(default_value_)) {}
+        constexpr explicit WithDefaultValue(Base base, T default_value_) noexcept : Base(base), default_value(std::move(default_value_)) {}
 
-        typename Base::value_type default_value;
+        T default_value;
     };
 
     template <typename T>
     concept HasDefaultValue = requires(T option) {
-        {option.default_value} -> std::convertible_to<typename T::value_type>;
+        {option.default_value} -> explicitly_convertible_to<typename T::value_type>;
     };
 
     template <typename Base>
@@ -200,14 +203,16 @@ namespace clp
             return OptionInterface<WithPattern<Base>>(WithPattern<Base>(*this, pattern));
         }
 
-        constexpr OptionInterface<WithDefaultValue<Base>> default_to(typename Base::value_type default_value) const noexcept requires(!HasDefaultValue<Base>)
+        template <explicitly_convertible_to<typename Base::value_type> T>
+        constexpr OptionInterface<WithDefaultValue<Base, T>> default_to(T default_value) const noexcept requires(!HasDefaultValue<Base>)
         {
-            return OptionInterface<WithDefaultValue<Base>>(WithDefaultValue<Base>(*this, std::move(default_value)));
+            return OptionInterface<WithDefaultValue<Base, T>>(WithDefaultValue<Base, T>(*this, std::move(default_value)));
         }
 
-        constexpr OptionInterface<WithImplicitValue<Base>> implicitly(typename Base::value_type implicit_value) const noexcept requires(!HasImplicitValue<Base>)
+        template <explicitly_convertible_to<typename Base::value_type> T>
+        constexpr OptionInterface<WithImplicitValue<Base, T>> implicitly(T implicit_value) const noexcept requires(!HasImplicitValue<Base>)
         {
-            return OptionInterface<WithImplicitValue<Base>>(WithImplicitValue<Base>(*this, std::move(implicit_value)));
+            return OptionInterface<WithImplicitValue<Base, T>>(WithImplicitValue<Base, T>(*this, std::move(implicit_value)));
         }
 
         template <typename Predicate>

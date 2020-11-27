@@ -4,6 +4,8 @@
 #include "clp.hh"
 #include <typeinfo>
 
+using namespace std::literals;
+
 namespace tests
 {
     template <clp::Parser P>
@@ -294,7 +296,7 @@ TEST_CASE("Combining several parsers in commands")
         | Command("fetch-url", 
             clp_Opt(std::string, url)["--url"]("Url to fetch") |
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         );
         
     int argc = 0;
@@ -429,7 +431,7 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
         | clp::Command("fetch-url",
             clp_Opt(std::string, url)["--url"]("Url to fetch") |
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10)
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         )
         | clp::Help();
 
@@ -592,4 +594,35 @@ TEST_CASE("A custom hint may be given to a variable when the type name may not b
     ;
 
     REQUIRE(str == expected);
+}
+
+TEST_CASE("Implicit and default values can be of types different to the value type, allowing for constexpr parsers for std::string by using string views")
+{
+    constexpr auto cli = clp_Opt(std::string, starting_level) ["--starting-level"]
+            ("Level to open in the editor.")
+            .default_to("new-level"sv)
+            .implicitly("main-world"sv)
+            .hint("level-name");
+
+    SECTION("Correctly parsed")
+    {
+        auto const options = tests::parse(cli, {"--starting-level=1-1"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->starting_level == "1-1");
+    }
+    SECTION("Default")
+    {
+        auto const options = tests::parse(cli, {});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->starting_level == "new-level");
+    }
+    SECTION("Implicit")
+    {
+        auto const options = tests::parse(cli, {"--starting-level"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->starting_level == "main-world");
+    }
 }

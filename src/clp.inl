@@ -1,6 +1,13 @@
 namespace clp
 {
 
+    template <typename ParseResultType, typename T>
+    constexpr ParseResultType make_parse_result(T t) noexcept
+    {
+        using ValueType = typename ParseResultType::value_type;
+        return ParseResultType{ValueType(t)};
+    }
+
     template <SingleOption Option>
     constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>
     {
@@ -11,7 +18,7 @@ namespace clp
             {
                 if constexpr (HasImplicitValue<Option>)
                     if (matched->empty())
-                        return typename Option::parse_result_type{option.implicit_value};
+                        return make_parse_result<typename Option::parse_result_type>(option.implicit_value);
 
                 auto parse_result = option.parse_impl(*matched);
 
@@ -24,7 +31,7 @@ namespace clp
         }
 
         if constexpr (HasDefaultValue<Option>)
-            return typename Option::parse_result_type{option.default_value};
+            return make_parse_result<typename Option::parse_result_type>(option.default_value);
         else
             return std::nullopt;
     }
