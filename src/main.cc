@@ -686,3 +686,21 @@ TEST_CASE("Option of vector type")
         REQUIRE(options->values == v{0, 5, 4, 5});
     }
 }
+
+TEST_CASE("Printing parsers of vectors")
+{
+    constexpr auto cli = clp_Opt(std::vector<int>, values) ["--values"]
+            ("Some test integers.")
+            .default_to_range(1, 2, 3)
+            .implicitly_range(0, 5, 4, 5);
+
+    std::string const str = clp::to_string(cli);
+
+    constexpr auto expected =
+        "--values <std::vector<int>>             Some test integers.\n"
+        "                                        By default: 1 2 3\n"
+        "                                        Implicitly: 0 5 4 5\n"
+        ;
+
+    REQUIRE(str == expected);
+}

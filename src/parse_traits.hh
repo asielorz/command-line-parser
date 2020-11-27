@@ -114,13 +114,13 @@ struct parse_traits<std::vector<T, Alloc>>
 		return v;
 	}
 
-	static std::string to_string(std::vector<T, Alloc> const & v) noexcept
+	static std::string to_string(std::vector<T, Alloc> const & v)
 	{
 		std::string result;
 
-		for (T const && t : v)
+		for (T const & t : v)
 		{
-			result += to_string(t);
+			result += parse_traits<T>::to_string(t);
 			result += ' ';
 		}
 

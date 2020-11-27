@@ -194,3 +194,24 @@ namespace clp
     }
 
 } // namespace clp
+
+template <typename T, size_t N>
+struct parse_traits<clp::constant_range<T, N>>
+{
+    static std::string to_string(clp::constant_range<T, N> const & r)
+    {
+        std::string result;
+
+        for (T const & t : r.array)
+        {
+            result += parse_traits<T>::to_string(t);
+            result += ' ';
+        }
+
+        // Remove last space.
+        if (!result.empty())
+            result.pop_back();
+
+        return result;
+    }
+};
