@@ -31,7 +31,7 @@ using OpenEditorArgs = clp_parse_result_type(open_editor_cli);
 int open_editor_main(OpenEditorArgs const & args);
 
 //************************************************************************************************************
-// open_editor.hh
+// bake_data.hh
 constexpr auto bake_data_cli = clp_Opt(std::string, level)["--level"]
         ("Level to bake data for.")
         .check(is_level_name, "Level does not exist.")
