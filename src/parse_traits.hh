@@ -91,3 +91,43 @@ struct parse_traits<std::string_view>
 		return std::string(s);
 	}
 };
+
+template <typename T, typename Alloc>
+struct parse_traits<std::vector<T, Alloc>>
+{
+	static constexpr std::optional<std::vector<T, Alloc>> parse(std::string_view text) noexcept
+	{
+		std::vector<T, Alloc> v;
+		
+		size_t index = 0;
+		while (index != std::string_view::npos)
+		{
+			size_t const end = text.find(' ', index);
+			auto elem = parse_traits<T>::parse(text.substr(index, end - index));
+			if (!elem)
+				return std::nullopt;
+			v.push_back(std::move(*elem));
+
+			index = text.find_first_not_of(' ', end);
+		}
+
+		return v;
+	}
+
+	static std::string to_string(std::vector<T, Alloc> const & v) noexcept
+	{
+		std::string result;
+
+		for (T const && t : v)
+		{
+			result += to_string(t);
+			result += ' ';
+		}
+
+		// Remove last space.
+		if (!result.empty())
+			result.pop_back();
+
+		return result;
+	}
+};

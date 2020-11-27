@@ -15,6 +15,12 @@ namespace tests
         auto const argv = std::data(args);
         return clp::parse(parser, argc, argv);
     }
+
+    template <typename T>
+    bool are_equal(std::vector<T> const & v, std::initializer_list<T> ilist) noexcept
+    {
+        return std::equal(v.begin(), v.end(), ilist.begin(), ilist.end());
+    }
 }
 
 int main()
@@ -624,5 +630,59 @@ TEST_CASE("Implicit and default values can be of types different to the value ty
 
         REQUIRE(options.has_value());
         REQUIRE(options->starting_level == "main-world");
+    }
+}
+
+template <typename T>
+struct v
+{
+    explicit constexpr v(std::initializer_list<T> ilist_) noexcept : ilist(ilist_) {}
+
+    std::initializer_list<T> ilist;
+};
+
+template <typename T>
+bool operator == (std::vector<T> const & v1, v<T> v2) noexcept
+{
+    return std::equal(v1.begin(), v1.end(), v2.ilist.begin(), v2.ilist.end());
+}
+
+template <typename T>
+std::ostream & operator << (std::ostream & os, v<T> v)
+{
+    os << "{ ";
+    for (T const & t : v.ilist)
+        os << t << ' ';
+    os << '}';
+    return os;
+}
+
+TEST_CASE("Option of vector type")
+{
+    constexpr auto cli = clp_Opt(std::vector<int>, values) ["--values"]
+            ("Some test integers.")
+            .default_to_range(1, 2, 3)
+            .implicitly_range(0, 5, 4, 5);
+
+    SECTION("Parse correctly")
+    {
+        auto const options = tests::parse(cli, {"--values=4 5 6"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->values == v{4, 5, 6});
+    }
+    SECTION("Default")
+    {
+        auto const options = tests::parse(cli, {});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->values == v{1, 2, 3});
+    }
+    SECTION("Implicit")
+    {
+        auto const options = tests::parse(cli, {"--values"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->values == v{0, 5, 4, 5});
     }
 }

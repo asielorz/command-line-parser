@@ -188,6 +188,18 @@ namespace clp
     #define clp_Opt(type, var)
     #define clp_Flag(var);
 
+    template <typename T, size_t N>
+    struct constant_range
+    {
+        T array[N];
+
+        template <std::constructible_from<T const *, T const *> Range>
+        explicit operator Range() const noexcept { return Range(std::begin(array), std::end(array)); }
+    };
+
+    template <class T, class... U>
+    constant_range(T, U...) -> constant_range<T, 1 + sizeof...(U)>;
+
     template <typename Base>
     struct OptionInterface : public Base
     {
@@ -209,10 +221,22 @@ namespace clp
             return OptionInterface<WithDefaultValue<Base, T>>(WithDefaultValue<Base, T>(*this, std::move(default_value)));
         }
 
+        template <typename ... Ts>
+        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(default_to(constant_range{default_values...}))
+        {
+            return default_to(constant_range{default_values...});
+        }
+
         template <explicitly_convertible_to<typename Base::value_type> T>
         constexpr OptionInterface<WithImplicitValue<Base, T>> implicitly(T implicit_value) const noexcept requires(!HasImplicitValue<Base>)
         {
             return OptionInterface<WithImplicitValue<Base, T>>(WithImplicitValue<Base, T>(*this, std::move(implicit_value)));
+        }
+
+        template <typename ... Ts>
+        constexpr auto implicitly_range(Ts ... default_values) const noexcept -> decltype(implicitly(constant_range{default_values...}))
+        {
+            return implicitly(constant_range{default_values...});
         }
 
         template <typename Predicate>
