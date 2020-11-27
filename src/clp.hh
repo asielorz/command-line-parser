@@ -224,7 +224,7 @@ namespace clp
         template <typename ... Ts>
         constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(default_to(constant_range{default_values...}))
         {
-            return default_to(constant_range{default_values...});
+            return this->default_to(constant_range{default_values...});
         }
 
         template <explicitly_convertible_to<typename Base::value_type> T>
@@ -236,7 +236,7 @@ namespace clp
         template <typename ... Ts>
         constexpr auto implicitly_range(Ts ... default_values) const noexcept -> decltype(implicitly(constant_range{default_values...}))
         {
-            return implicitly(constant_range{default_values...});
+            return this->implicitly(constant_range{default_values...});
         }
 
         template <typename Predicate>
@@ -262,6 +262,8 @@ namespace clp
         template <typename T>
         using get_parse_result_type = typename T::parse_result_type;
     }
+
+    #define clp_parse_result_type(cli) clp::detail::get_parse_result_type<std::remove_cvref_t<decltype(cli)>>;
 
     template <SingleOption ... Options>
     struct Compound : private Options...

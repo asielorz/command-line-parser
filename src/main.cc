@@ -691,7 +691,7 @@ TEST_CASE("Printing parsers of vectors")
             .implicitly_range(0, 5, 4, 5);
 
     std::string const str = cli.to_string();
-
+    
     constexpr auto expected =
         "--values <std::vector<int>>             Some test integers.\n"
         "                                        By default: 1 2 3\n"

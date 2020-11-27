@@ -9,54 +9,65 @@ The library currently (as of 20-11-2020) only builds on latest Visual Studio 201
 This sample code shows how to declare a command line interface with several commands and subparsers for each command.
 
 ```cpp
-constexpr auto cli =
-    Command("open-editor",
-        Opt(int, width)["-w"]["--width"]
-            ("Width of the screen in pixels.")
-            .default_to(1920)
-            .check([](int width){ return width > 0 && width <= 3840; }, "Width must be between 0 and 3840 (4k).")
-        | Opt(int, height)["-h"]["--height"]
-            ("Height of the screen in pixels.")
-            .default_to(1080)
-            .check([](int height) { return height > 0 && height <= 2160; }, "Height must be between 0 and 2160 (4k).")
-        | Opt(bool, fullscreen)["-fullscreen"]
-            ("Whether to start the application in fullscreen or not.")
-            .default_to(false)
-        | Opt(std::string, starting_level) ["--starting-level"]
-            ("Level to open in the editor.")
-            .check(is_level_name, "Level does not exist.")
-    )
-    & Command("bake-data",
-        Opt(std::string, level)["--level"]
-            ("Level to bake data for.")
-            .check(is_level_name, "Level does not exist.")
-        | Opt(Platform, platform)["--platform"]
-            ("Platform for which to bake the data.")
-        | Opt(GraphicsAPI, graphics_api)["--graphics-api"]
-            ("Graphics API for which to bake the data.")
-        | Opt(int, number_of_threads)["--num-threads"]
-            ("Number of threads to use in data generation.")
-            .default_to(8)
-            .check([](int number_of_threads) { return number_of_threads > 0 && number_of_threads <= std::thread::hardware_concurrency(); }, "Invalid number of threads.")
-    );
+//************************************************************************************************************
+// open_editor.hh
+constexpr auto open_editor_cli = clp_Opt(int, width)["-w"]["--width"]
+        ("Width of the screen in pixels.")
+        .default_to(1920)
+        .check([](int width){ return width > 0 && width <= 3840; }, "Width must be between 0 and 3840 (4k).")
+    | clp_Opt(int, height)["-h"]["--height"]
+        ("Height of the screen in pixels.")
+        .default_to(1080)
+        .check([](int height) { return height > 0 && height <= 2160; }, "Height must be between 0 and 2160 (4k).")
+    | clp_Opt(bool, fullscreen)["-fullscreen"]
+        ("Whether to start the application in fullscreen or not.")
+        .default_to(false)
+    | clp_Opt(std::string, starting_level) ["--starting-level"]
+        ("Level to open in the editor.")
+        .hint("level-name")
+        .check(is_level_name, "Level does not exist.");
 
-auto const arguments = cli.parse(argc, argv);
+using OpenEditorArgs = clp_parse_result_type(open_editor_cli);
+int open_editor_main(OpenEditorArgs const & args);
 
-if (arguments)
+//************************************************************************************************************
+// open_editor.hh
+constexpr auto bake_data_cli = clp_Opt(std::string, level)["--level"]
+        ("Level to bake data for.")
+        .check(is_level_name, "Level does not exist.")
+    | clp_Opt(Platform, platform)["--platform"]
+        ("Platform for which to bake the data.")
+    | clp_Opt(GraphicsAPI, graphics_api)["--graphics-api"]
+        ("Graphics API for which to bake the data.")
+    | clp_Opt(int, number_of_threads)["--num-threads"]
+        ("Number of threads to use in data generation.")
+        .default_to(8)
+        .check([](unsigned number_of_threads) { return number_of_threads > 0 && number_of_threads <= std::thread::hardware_concurrency(); }, "Invalid number of threads.");
+
+using BakeDataArgs = clp_parse_result_type(bake_data_cli);
+int bake_data_main(BakeDataArgs const & args);
+
+//************************************************************************************************************
+// main.cc
+int main(int argc, char const * const argv[])
 {
-    switch (arguments->index())
+    // Define command line interface as a composition of the interface of each system.
+    constexpr auto cli =
+        clp::Command("open-editor", open_editor_cli)
+        | clp::Command("bake-data", bake_data_cli);
+
+    auto const arguments = cli.parse(argc, argv);
+
+    if (arguments)
     {
-        case 0:
-        {
-            auto const editor_args = std::get<0>(*arguments);
-            open_editor(editor_args.width, editor_args.height, editor_args.fullscreen, editor_args.starting_level);
-            break;
-        }
-        case 1:
-        {
-            auto const bake_args = std::get<1>(*arguments);
-            bake_data(bake_args.level, bake_args.platform, bake_args.graphics_api, bake_args.number_of_threads);
-        }
+        return std::visit(overload(
+            [](OpenEditorArgs const & args) { return open_editor_main(args); },
+            [](BakeDataArgs const & args) { return bake_data_main(args); }
+        ), *arguments);
+    }
+    else
+    {
+        return -1;
     }
 }
 ```
