@@ -182,9 +182,6 @@ namespace clp
         {option.parse_impl(arg)} ->std::same_as<std::optional<typename T::parse_result_type>>;
     };
 
-    template <SingleOption Option>
-    constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>;
-
     #define clp_Opt(type, var)
     #define clp_Flag(var);
 
@@ -204,6 +201,9 @@ namespace clp
     struct OptionInterface : public Base
     {
         explicit constexpr OptionInterface(Base base) noexcept : Base(base) {}
+
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
+        std::string to_string() const requires HasDescription<Base>;
 
         constexpr OptionInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
         {
@@ -270,6 +270,9 @@ namespace clp
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept;
+        std::string to_string() const;
+
         template <SingleOption T>
         constexpr T const & access_option() const noexcept
         {
@@ -277,17 +280,13 @@ namespace clp
         }
     };
 
-    template <SingleOption ... Options>
-    constexpr auto parse(Compound<Options...> const & parser, int argc, char const * const argv[]) noexcept;
-
     template <SingleOption A, SingleOption B>         constexpr Compound<A, B> operator | (A a, B b) noexcept;
     template <SingleOption ... A, SingleOption B>     constexpr Compound<A..., B> operator | (Compound<A...> a, B b) noexcept;
     template <SingleOption A, SingleOption ... B>     constexpr Compound<A, B...> operator | (A a, Compound<B...> b) noexcept;
     template <SingleOption ... A, SingleOption ... B> constexpr Compound<A..., B...> operator | (Compound<A...> a, Compound<B...> b) noexcept;
 
     template <typename T>
-    //concept Parser = requires(T const parser, int argc, char const * const * argv) { {clp::parse(parser, argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>; };
-    concept Parser = true;
+    concept Parser = requires(T const parser, int argc, char const * const * argv) { {parser.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>; };
 
     template <Parser P>
     struct Command
@@ -317,16 +316,14 @@ namespace clp
 
         constexpr explicit CommandSelector(Commands... commands) noexcept : Commands(commands)... {}
 
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+
         template <CommandType C>
         constexpr C const & access_command() const noexcept
         {
             return static_cast<C const &>(*this);
         }
     };
-
-    template <CommandType ... Commands>
-    constexpr auto parse(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
-        -> std::optional<typename CommandSelector<Commands...>::parse_result_type>;
 
     struct ShowHelp {};
 
@@ -342,12 +339,6 @@ namespace clp
     template <CommandType ... A, CommandType B> constexpr CommandSelector<A..., B> operator | (CommandSelector<A...> a, B b) noexcept;
     template <CommandType A, CommandType ... B> constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept;
     template <CommandType ... A, CommandType ... B> constexpr CommandSelector<A..., B...> operator | (CommandSelector<A...> a, CommandSelector<B...> b) noexcept;
-
-    template <SingleOption Option>
-    std::string to_string(Option const & option) requires HasDescription<Option>;
-
-    template <SingleOption ... Options>
-    std::string to_string(Compound<Options...> const & parser);
 
 } // namespace clp
 

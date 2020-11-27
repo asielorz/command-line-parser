@@ -13,7 +13,7 @@ namespace tests
     {
         int const argc = int(args.size());
         auto const argv = std::data(args);
-        return clp::parse(parser, argc, argv);
+        return parser.parse(argc, argv);
     }
 
     template <typename T>
@@ -305,10 +305,6 @@ TEST_CASE("Combining several parsers in commands")
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         );
         
-    int argc = 0;
-    char const * const * argv = nullptr;
-    clp::parse(cli, argc, argv);
-
     SECTION("First command")
     {
         auto const options = tests::parse(cli, {"open-window", "-w=1920", "-h=1080"});
@@ -404,7 +400,7 @@ TEST_CASE("Printing help without word wrap and without commands")
         | clp_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.");
 
-    std::string const str = clp::to_string(cli);
+    std::string const str = cli.to_string();
 
     constexpr auto expected =
         "-w, --width <int>                       Width of the screen in pixels.\n"
@@ -586,7 +582,7 @@ TEST_CASE("A custom hint may be given to a variable when the type name may not b
             ("Level to open in the editor.")
             .hint("level-name");
 
-    std::string const str = clp::to_string(cli);
+    std::string const str = cli.to_string();
 
     constexpr auto expected =
         "-w, --width <int>                       Width of the screen in pixels.\n"
@@ -694,7 +690,7 @@ TEST_CASE("Printing parsers of vectors")
             .default_to_range(1, 2, 3)
             .implicitly_range(0, 5, 4, 5);
 
-    std::string const str = clp::to_string(cli);
+    std::string const str = cli.to_string();
 
     constexpr auto expected =
         "--values <std::vector<int>>             Some test integers.\n"

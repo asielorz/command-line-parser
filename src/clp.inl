@@ -8,30 +8,30 @@ namespace clp
         return ParseResultType{ValueType(t)};
     }
 
-    template <SingleOption Option>
-    constexpr auto parse(Option const & option, int argc, char const * const argv[]) noexcept -> std::optional<typename Option::parse_result_type>
+    template <typename Base>
+    constexpr auto OptionInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>
     {
         for (int i = 0; i < argc; ++i)
         {
-            std::optional<std::string_view> const matched = option.match(argv[i]);
+            std::optional<std::string_view> const matched = this->match(argv[i]);
             if (matched)
             {
-                if constexpr (HasImplicitValue<Option>)
+                if constexpr (HasImplicitValue<Base>)
                     if (matched->empty())
-                        return make_parse_result<typename Option::parse_result_type>(option.implicit_value);
+                        return make_parse_result<typename Base::parse_result_type>(this->implicit_value);
 
-                auto parse_result = option.parse_impl(*matched);
+                auto parse_result = this->parse_impl(*matched);
 
-                if constexpr (HasValidationCheck<Option>)
-                    if (parse_result && !option.validate(*parse_result))
+                if constexpr (HasValidationCheck<Base>)
+                    if (parse_result && !this->validate(*parse_result))
                         return std::nullopt;
 
                 return parse_result;
             }
         }
 
-        if constexpr (HasDefaultValue<Option>)
-            return make_parse_result<typename Option::parse_result_type>(option.default_value);
+        if constexpr (HasDefaultValue<Base>)
+            return make_parse_result<typename Base::parse_result_type>(this->default_value);
         else
             return std::nullopt;
     }
@@ -51,11 +51,11 @@ namespace clp
     #define clp_Flag(var) clp_Opt(bool, var).default_to(false).implicitly(true)
 
     template <SingleOption ... Options>
-    constexpr auto parse(Compound<Options...> const & parser, int argc, char const * const argv[]) noexcept
+    constexpr auto Compound<Options...>::parse(int argc, char const * const argv[]) const noexcept
     {
         using parse_result_type = typename Compound<Options...>::parse_result_type;
 
-        return [...opts = parse(parser.access_option<Options>(), argc, argv)]() mutable noexcept -> std::optional<parse_result_type>
+        return [...opts = this->access_option<Options>().parse(argc, argv)]() mutable noexcept -> std::optional<parse_result_type>
         {
             if (!(opts && ...))
                 return std::nullopt;
@@ -116,19 +116,18 @@ namespace clp
     }
 
     template <CommandType ... Commands>
-    constexpr auto parse(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
-        -> std::optional<typename CommandSelector<Commands...>::parse_result_type>
+    constexpr auto CommandSelector<Commands...>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
     {
         if (argc <= 0)
             return std::nullopt;
 
-        return clp::detail::parse_impl<Commands...>(commands, argc, argv);
+        return clp::detail::parse_impl<Commands...>(*this, argc, argv);
     }
 
     template <Parser P>
     constexpr auto Command<P>::parse(int argc, char const * const argv[]) const noexcept
     { 
-        return clp::parse(parser, argc - 1, argv + 1);
+        return parser.parse(argc - 1, argv + 1);
     }
 
     template <CommandType A, CommandType B>
@@ -155,32 +154,32 @@ namespace clp
         return CommandSelector<A..., B...>(a.template access_command<A>()..., b.template access_command<B>()...);
     }
 
-    template <SingleOption Option>
-    std::string to_string(Option const & option) requires HasDescription<Option>
+    template <typename Base>
+    std::string OptionInterface<Base>::to_string() const requires HasDescription<Base>
     {
         constexpr int column_width = 40;
 
-        std::string out = option.patterns_to_string();
+        std::string out = this->patterns_to_string();
         out += " <";
-        out += option.hint_text();
+        out += this->hint_text();
         out += ">";
         while (out.size() < column_width) out.push_back(' ');
-        out += option.description;
+        out += this->description;
 
-        if constexpr (HasDefaultValue<Option>)
+        if constexpr (HasDefaultValue<Base>)
         {
             out += '\n';
             for (int i = 0; i < column_width; ++i) out.push_back(' ');
             out += "By default: ";
-            out += ::to_string(option.default_value);
+            out += ::to_string(this->default_value);
         }
 
-        if constexpr (HasImplicitValue<Option>)
+        if constexpr (HasImplicitValue<Base>)
         {
             out += '\n';
             for (int i = 0; i < column_width; ++i) out.push_back(' ');
             out += "Implicitly: ";
-            out += ::to_string(option.implicit_value);
+            out += ::to_string(this->implicit_value);
         }
 
         out += '\n';
@@ -188,9 +187,9 @@ namespace clp
     }
 
     template <SingleOption ... Options>
-    std::string to_string(Compound<Options...> const & parser)
+    std::string Compound<Options...>::to_string() const
     {
-        return (to_string(parser.template access_option<Options>()) + ...);
+        return (this->template access_option<Options>().to_string() + ...);
     }
 
 } // namespace clp
