@@ -576,7 +576,7 @@ TEST_CASE("A custom hint may be given to a variable when the type name may not b
             .implicitly(true)
         | clp_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.")
-            .hint("string");
+            .hint("level-name");
 
     std::string const str = clp::to_string(cli);
 
@@ -588,7 +588,7 @@ TEST_CASE("A custom hint may be given to a variable when the type name may not b
         "--fullscreen <bool>                     Whether to start the application in fullscreen or not.\n"
         "                                        By default: false\n"
         "                                        Implicitly: true\n"
-        "--starting-level <string>               Level to open in the editor.\n"
+        "--starting-level <level-name>           Level to open in the editor.\n"
     ;
 
     REQUIRE(str == expected);
