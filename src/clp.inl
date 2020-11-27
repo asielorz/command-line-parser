@@ -155,7 +155,7 @@ namespace clp
 
         std::string out = option.patterns_to_string();
         out += " <";
-        out += option.type_name;
+        out += option.hint_text();
         out += ">";
         while (out.size() < column_width) out.push_back(' ');
         out += option.description;

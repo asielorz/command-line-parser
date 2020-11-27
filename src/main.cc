@@ -561,3 +561,35 @@ TEST_CASE("parse may be called at compile time")
     STATIC_REQUIRE(options->some_flag == true);
     STATIC_REQUIRE(options->some_string == "foo");
 }
+
+TEST_CASE("A custom hint may be given to a variable when the type name may not be readable enough.")
+{
+    constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
+            ("Width of the screen in pixels.")
+            .default_to(1920)
+        | clp_Opt(int, height)["-h"]["--height"]
+            ("Height of the screen in pixels.")
+            .default_to(1080)
+        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            ("Whether to start the application in fullscreen or not.")
+            .default_to(false)
+            .implicitly(true)
+        | clp_Opt(std::string, starting_level) ["--starting-level"]
+            ("Level to open in the editor.")
+            .hint("string");
+
+    std::string const str = clp::to_string(cli);
+
+    constexpr auto expected =
+        "-w, --width <int>                       Width of the screen in pixels.\n"
+        "                                        By default: 1920\n"
+        "-h, --height <int>                      Height of the screen in pixels.\n"
+        "                                        By default: 1080\n"
+        "--fullscreen <bool>                     Whether to start the application in fullscreen or not.\n"
+        "                                        By default: false\n"
+        "                                        Implicitly: true\n"
+        "--starting-level <string>               Level to open in the editor.\n"
+    ;
+
+    REQUIRE(str == expected);
+}

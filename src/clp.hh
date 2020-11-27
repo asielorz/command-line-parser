@@ -136,6 +136,17 @@ namespace clp
         ParserFunction custom_parser;
     };
 
+    template <typename Base>
+    struct WithCustomHint : public Base
+    {
+        constexpr explicit WithCustomHint(Base base, std::string_view hint) noexcept : Base(base), custom_hint(hint) {}
+
+        constexpr std::string_view hint_text() const noexcept { return custom_hint; }
+
+    private:
+        std::string_view custom_hint;
+    };
+
     template <typename T>
     concept OptionStruct = requires(T a) { { a._get() } -> std::same_as<typename T::value_type const &>; };
 
@@ -146,7 +157,6 @@ namespace clp
         using value_type = typename T::value_type;
 
         constexpr explicit Option(std::string_view type_name_) : type_name(type_name_) {}
-        std::string_view type_name;
 
         constexpr std::optional<T> parse_impl(std::string_view argument_text) const noexcept
         {
@@ -156,6 +166,11 @@ namespace clp
             else
                 return std::nullopt;
         }
+
+        constexpr std::string_view hint_text() const noexcept { return type_name; }
+
+    private:
+        std::string_view type_name;
     };
 
     template <typename T>
@@ -205,6 +220,11 @@ namespace clp
         constexpr OptionInterface<WithCustomParser<Base, ParserFunction>> custom_parser(ParserFunction parser_function) const noexcept
         {
             return OptionInterface<WithCustomParser<Base, ParserFunction>>(WithCustomParser<Base, ParserFunction>(*this, parser_function));
+        }
+
+        constexpr OptionInterface<WithCustomHint<Base>> hint(std::string_view custom_hint) const noexcept
+        {
+            return OptionInterface<WithCustomHint<Base>>(WithCustomHint<Base>(*this, custom_hint));
         }
     };
     
