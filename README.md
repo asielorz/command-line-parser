@@ -19,9 +19,8 @@ constexpr auto open_editor_cli = clp_Opt(int, width)["-w"]["--width"]
         ("Height of the screen in pixels.")
         .default_to(1080)
         .check([](int height) { return height > 0 && height <= 2160; }, "Height must be between 0 and 2160 (4k).")
-    | clp_Opt(bool, fullscreen)["-fullscreen"]
+    | clp_Flag(fullscreen)["-fullscreen"]
         ("Whether to start the application in fullscreen or not.")
-        .default_to(false)
     | clp_Opt(std::string, starting_level) ["--starting-level"]
         ("Level to open in the editor.")
         .hint("level-name")
