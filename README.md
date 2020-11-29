@@ -38,7 +38,7 @@ constexpr auto bake_data_cli = clp_Opt(std::string, level)["--level"]
         ("Platform for which to bake the data.")
     | clp_Opt(GraphicsAPI, graphics_api)["--graphics-api"]
         ("Graphics API for which to bake the data.")
-    | clp_Opt(int, number_of_threads)["--num-threads"]
+    | clp_Opt(unsigned, number_of_threads)["--num-threads"]
         ("Number of threads to use in data generation.")
         .default_to(8)
         .check([](unsigned number_of_threads) { return number_of_threads > 0 && number_of_threads <= std::thread::hardware_concurrency(); }, "Invalid number of threads.");
