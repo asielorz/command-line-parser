@@ -11,6 +11,22 @@ namespace clp
     } // namespace detail
 
     template <typename Base>
+    constexpr auto OptionInterface<Base>::parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>
+    {
+        if constexpr (HasImplicitValue<Base>)
+            if (matched_arg.empty())
+                return detail::make_parse_result<typename Base::parse_result_type>(this->implicit_value);
+
+        auto parse_result = this->parse_impl(matched_arg);
+
+        if constexpr (HasValidationCheck<Base>)
+            if (parse_result && !this->validate(*parse_result))
+                return std::nullopt;
+
+        return parse_result;
+    }
+
+    template <typename Base>
     constexpr auto OptionInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>
     {
         for (int i = 0; i < argc; ++i)
@@ -53,7 +69,7 @@ namespace clp
     #define clp_Flag(var) clp_Opt(bool, var).default_to(false).implicitly(true)
 
     template <SingleOption ... Options>
-    constexpr auto Compound<Options...>::parse(int argc, char const * const argv[]) const noexcept
+    constexpr auto Compound<Options...>::parse2(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
     {
         using parse_result_type = typename Compound<Options...>::parse_result_type;
 
@@ -64,6 +80,64 @@ namespace clp
             else
                 return parse_result_type{std::move(*opts)...};
         }();
+    }
+
+    template <SingleOption Option>
+    using option_parse_result = std::optional<std::optional<typename Option::parse_result_type>>;
+
+    template <SingleOption Option>
+    constexpr bool try_parse_argument(Option const & parser, std::string_view arg, option_parse_result<Option> & result)
+    {
+        if (!result)
+        {
+            std::optional<std::string_view> const matched = parser.match(arg);
+            if (matched)
+            {
+                result.emplace(parser.parse(*matched));
+                return true;
+            }
+            else
+                return false;
+        }
+        return false;
+    }
+
+    template <SingleOption Option>
+    constexpr void complete_with_default_value([[maybe_unused]] Option const & parser, [[maybe_unused]] option_parse_result<Option> & result)
+    {
+        if constexpr (HasDefaultValue<Option>)
+            if (!result)
+                result.emplace(detail::make_parse_result<typename Option::parse_result_type>(parser.default_value));
+    }
+
+    template <SingleOption ... Options>
+    constexpr auto Compound<Options...>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    {
+        std::tuple<option_parse_result<Options>...> option_parse_results;
+
+        for (int i = 0; i < argc; ++i)
+        {
+            bool const argument_parsed = (try_parse_argument(
+                access_option<Options>(),
+                argv[i],
+                std::get<option_parse_result<Options>>(option_parse_results)
+            ) || ...);
+
+            if (!argument_parsed)
+                return std::nullopt;
+        }
+
+        (complete_with_default_value(access_option<Options>(), std::get<option_parse_result<Options>>(option_parse_results)), ...);
+
+        // Check that all options were matched.
+        if (!(std::get<option_parse_result<Options>>(option_parse_results) && ...))
+            return std::nullopt;
+
+        // Check that no option failed to parse.
+        if (!(*std::get<option_parse_result<Options>>(option_parse_results) && ...))
+            return std::nullopt;
+
+        return parse_result_type{std::move(**std::get<option_parse_result<Options>>(option_parse_results))...};
     }
 
     template <SingleOption A, SingleOption B>

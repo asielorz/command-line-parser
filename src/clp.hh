@@ -202,6 +202,7 @@ namespace clp
     {
         explicit constexpr OptionInterface(Base base) noexcept : Base(base) {}
 
+        constexpr auto parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>;
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
         std::string to_string() const requires HasDescription<Base>;
 
@@ -272,7 +273,8 @@ namespace clp
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept;
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        constexpr auto parse2(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
         std::string to_string() const;
 
         template <SingleOption T>
