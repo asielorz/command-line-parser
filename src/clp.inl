@@ -93,7 +93,7 @@ namespace clp
             std::optional<std::string_view> const matched = parser.match(arg);
             if (matched)
             {
-                result.emplace(parser.parse(*matched));
+                result = option_parse_result<Option>(parser.parse(*matched));
                 return true;
             }
             else

@@ -555,16 +555,16 @@ TEST_CASE("A custom parser may be given to an option")
     }
 }
 
-//TEST_CASE("parse may be called at compile time")
-//{
-//    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
-//        | clp_Opt(std::string_view, some_string)["--str"]("Some text");
-//
-//    constexpr auto options = tests::parse(cli, {"--flag", "--str=foo"});
-//    STATIC_REQUIRE(options.has_value());
-//    STATIC_REQUIRE(options->some_flag == true);
-//    STATIC_REQUIRE(options->some_string == "foo");
-//}
+TEST_CASE("parse may be called at compile time")
+{
+    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
+        | clp_Opt(std::string_view, some_string)["--str"]("Some text");
+
+    constexpr auto options = tests::parse(cli, {"--flag", "--str=foo"});
+    STATIC_REQUIRE(options.has_value());
+    STATIC_REQUIRE(options->some_flag == true);
+    STATIC_REQUIRE(options->some_string == "foo");
+}
 
 TEST_CASE("A custom hint may be given to a variable when the type name may not be readable enough.")
 {
