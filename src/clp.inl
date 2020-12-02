@@ -268,6 +268,44 @@ namespace clp
         return (this->template access_option<Options>().to_string() + ...);
     }
 
+    template <
+        Parser SharedOptions,
+        instantiation_of<CommandSelector> Commands
+    >
+    constexpr auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    {
+        auto const it = std::find_if(argv, argv + argc, [this](char const * arg) { return commands.match(arg); });
+
+        // Command not found.
+        if (it == argv + argc)
+            return std::nullopt;
+
+        int const arguments_until_command = int(it - argv);
+
+        auto shared_arguments = shared_options.parse(arguments_until_command, argv);
+        if (!shared_arguments)
+            return std::nullopt;
+
+        auto command = commands.parse(argc - arguments_until_command, it);
+        if (!command)
+            return std::nullopt;
+
+        return parse_result_type{std::move(*shared_arguments), std::move(*command)};
+    }
+
+    template <Parser P, CommandType Command>
+    constexpr CommandWithSharedOptions<P, CommandSelector<Command>> operator | (SharedOptions<P> a, Command b) noexcept
+    {
+        return CommandWithSharedOptions<P, CommandSelector<Command>>(a.parser, CommandSelector<Command>(b));
+    }
+
+    template <Parser P, CommandType ... PreviousCommands, CommandType NewCommand>
+    constexpr auto operator | (CommandWithSharedOptions<P, CommandSelector<PreviousCommands...>> a, NewCommand b) noexcept
+        -> CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>
+    {
+        return CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>(a.shared_options, a.commands | b);
+    }
+
 } // namespace clp
 
 template <typename T, size_t N>

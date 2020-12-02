@@ -712,3 +712,60 @@ TEST_CASE("Unrecognized arguments are an error")
 
     REQUIRE(!options.has_value());
 }
+
+TEST_CASE("instantiation_of is a concept that checks if a type is an instantiation of a template")
+{
+    STATIC_REQUIRE(clp::instantiation_of<std::vector<int>, std::vector>);
+    STATIC_REQUIRE(!clp::instantiation_of<int, std::vector>);
+    STATIC_REQUIRE(clp::instantiation_of<std::string, std::basic_string>);
+}
+
+TEST_CASE("Commands with shared options")
+{
+    constexpr auto cli =
+        clp::SharedOptions(
+            clp_Opt(std::string, root_path)["--root-path"]
+                .default_to("."sv)
+            | clp_Flag(dry_run) ["--dry-run"]
+        ) 
+        | clp::Command("open-window",
+            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        )
+        | clp::Command("fetch-url",
+            clp_Opt(std::string, url)["--url"]("Url to fetch") |
+            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        );
+
+    SECTION("Shared options are given before the command")
+    {
+        auto const arguments = tests::parse(cli, {"--root-path=C://Users/foo/Desktop/", "open-window", "-w=800", "-h=600"});
+
+        REQUIRE(arguments.has_value());
+        REQUIRE(arguments->shared_arguments.root_path == "C://Users/foo/Desktop/");
+        REQUIRE(arguments->shared_arguments.dry_run == false);
+        REQUIRE(arguments->command.index() == 0);
+    }
+    SECTION("Fail to parse because of unknown argument")
+    {
+        auto const arguments = tests::parse(cli, {"--undefined=Hello", "open-window", "-w=800", "-h=600"});
+        
+        REQUIRE(!arguments.has_value());
+    }
+    SECTION("Fail to parse because of shared argument after command")
+    {
+        auto const arguments = tests::parse(cli, {"open-window", "--root-path=C://Users/foo/Desktop/", "-w=800", "-h=600"});
+
+        REQUIRE(!arguments.has_value());
+    }
+    SECTION("No values given for shared arguments. Default values are used and command is directly parsed")
+    {
+        auto const arguments = tests::parse(cli, {"open-window", "-w=800", "-h=600"});
+
+        REQUIRE(arguments.has_value());
+        REQUIRE(arguments->shared_arguments.root_path == ".");
+        REQUIRE(arguments->shared_arguments.dry_run == false);
+        REQUIRE(arguments->command.index() == 0);
+    }
+}

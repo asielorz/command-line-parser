@@ -11,6 +11,24 @@ namespace clp
     template <typename From, typename To>
     concept explicitly_convertible_to = requires(From const from) { static_cast<To>(from); };
 
+    namespace detail
+    {
+        template <template <typename ...> typename Template, typename ... Args>
+        constexpr bool instantiation_of_impl(Template<Args...> const *) noexcept { return true; }
+    
+        template <template <auto ...> typename Template, auto ... Args>
+        constexpr bool instantiation_of_impl(Template<Args...> const *) noexcept { return true; }
+    
+        template <template <typename ...> typename Template, typename T>
+        constexpr bool instantiation_of_impl(T const *) noexcept { return false; }
+    
+        template <typename T>
+        constexpr T * null_pointer_to = static_cast<T *>(nullptr);
+    } // namespace detail
+
+    template <typename T, template <typename ...> typename Template>
+    concept instantiation_of = detail::instantiation_of_impl<Template>(detail::null_pointer_to<T>);
+
     template <typename T>
     concept HasValidationCheck = requires(T option, typename T::parse_result_type parse_result) {
         {option.validate(parse_result)} -> std::same_as<bool>;
@@ -322,6 +340,8 @@ namespace clp
 
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
 
+        constexpr bool match(std::string_view text) const noexcept { return (access_command<Commands>().match(text) || ...); }
+
         template <CommandType C>
         constexpr C const & access_command() const noexcept
         {
@@ -343,6 +363,38 @@ namespace clp
     template <CommandType ... A, CommandType B> constexpr CommandSelector<A..., B> operator | (CommandSelector<A...> a, B b) noexcept;
     template <CommandType A, CommandType ... B> constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept;
     template <CommandType ... A, CommandType ... B> constexpr CommandSelector<A..., B...> operator | (CommandSelector<A...> a, CommandSelector<B...> b) noexcept;
+
+    template <
+        Parser SharedOptions, 
+        instantiation_of<CommandSelector> Commands
+    >
+    struct CommandWithSharedOptions
+    {
+        struct parse_result_type
+        {
+            typename SharedOptions::parse_result_type shared_arguments;
+            typename Commands::parse_result_type command;
+        };
+
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+
+        SharedOptions shared_options;
+        Commands commands;
+    };
+
+    template <Parser P>
+    struct SharedOptions
+    {
+        constexpr SharedOptions(P parser_) noexcept : parser(std::move(parser_)) {}
+        P parser;
+    };
+
+    template <Parser P, CommandType Command>
+    constexpr CommandWithSharedOptions<P, CommandSelector<Command>> operator | (SharedOptions<P> a, Command b) noexcept;
+
+    template <Parser P, CommandType ... PreviousCommands, CommandType NewCommand>
+    constexpr auto operator | (CommandWithSharedOptions<P, CommandSelector<PreviousCommands...>> a, NewCommand b) noexcept
+        -> CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>;
 
 } // namespace clp
 
