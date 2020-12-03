@@ -175,7 +175,7 @@ namespace clp
             Next const & next = commands.access_command<Next>();
             if (next.match(argv[0]))
             {
-                auto result = next.parse(argc, argv);
+                auto result = next.parse_command(argc, argv);
                 if (!result)
                     return std::nullopt;
                 else
@@ -201,7 +201,7 @@ namespace clp
     }
 
     template <Parser P>
-    constexpr auto Command<P>::parse(int argc, char const * const argv[]) const noexcept
+    constexpr auto Command<P>::parse_command(int argc, char const * const argv[]) const noexcept
     { 
         return parser.parse(argc - 1, argv + 1);
     }
@@ -304,6 +304,41 @@ namespace clp
         -> CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>
     {
         return CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>(a.shared_options, a.commands | b);
+    }
+
+    template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
+    constexpr auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    {
+        if (commands.match(argv[0]))
+        {
+            auto parsed_command = commands.parse(argc, argv);
+            if (!parsed_command)
+                return std::nullopt;
+            else
+                return std::visit([](auto && x) { return parse_result_type(std::move(x)); }, std::move(*parsed_command));
+        }
+        else
+            return implicit_command.parse(argc, argv);
+    }
+
+    template <CommandType Command, Parser ImplicitCommand>
+    constexpr CommandWithImplicitCommand<CommandSelector<Command>, ImplicitCommand> operator | (Command command, ImplicitCommand implicit_command) noexcept
+    {
+        return CommandWithImplicitCommand<CommandSelector<Command>, ImplicitCommand>(CommandSelector<Command>(command), implicit_command);
+    }
+
+    template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
+    constexpr CommandWithImplicitCommand<Commands, ImplicitCommand> operator | (Commands commands, ImplicitCommand implicit_command) noexcept
+    {
+        return CommandWithImplicitCommand<Commands, ImplicitCommand>(commands, implicit_command);
+    }
+
+    template <instantiation_of<CommandSelector> Commands, Parser CurrentImplicitCommand, Parser NewImplicitCommand>
+    constexpr auto operator | (CommandWithImplicitCommand<Commands, CurrentImplicitCommand> commands, NewImplicitCommand new_implicit_command) noexcept
+        -> CommandWithImplicitCommand<Commands, decltype(commands.implicit_command | new_implicit_command)>
+    {
+        return CommandWithImplicitCommand<Commands, decltype(commands.implicit_command | new_implicit_command)>
+            (commands.commands, commands.implicit_command | new_implicit_command);
     }
 
 } // namespace clp

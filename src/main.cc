@@ -769,3 +769,47 @@ TEST_CASE("Commands with shared options")
         REQUIRE(arguments->command.index() == 0);
     }
 }
+
+TEST_CASE("Commands with implicit command")
+{
+    constexpr auto cli = clp::Help()
+        | clp_Opt(int, width)["-w"]["--width"]
+            ("Width of the screen in pixels.")
+            .default_to(1920)
+        | clp_Opt(int, height)["-h"]["--height"]
+            ("Height of the screen in pixels.")
+            .default_to(1080)
+        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            ("Whether to start the application in fullscreen or not.")
+            .default_to(false)
+            .implicitly(true)
+        | clp_Opt(std::string, starting_level) ["--starting-level"]
+            ("Level to open in the editor.")
+            .hint("level-name");
+
+    SECTION("Help matched")
+    {
+        auto const options = tests::parse(cli, {"--help"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->index() == 0);
+    }
+    SECTION("Implicit command matched")
+    {
+        auto const options = tests::parse(cli, {"-w=50", "-h=40", "--starting-level=foo"});
+
+        using Args = clp_command_type(cli, 1);
+
+        REQUIRE(options.has_value());
+        std::visit(overload(
+            [](clp::ShowHelp) { REQUIRE(false); },
+            [](Args args) 
+            {
+               REQUIRE(args.width == 50);
+               REQUIRE(args.height == 40);
+               REQUIRE(args.fullscreen == false);
+               REQUIRE(args.starting_level == "foo");
+            }
+        ),  *options);
+    }
+}

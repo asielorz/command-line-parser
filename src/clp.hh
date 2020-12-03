@@ -24,10 +24,18 @@ namespace clp
     
         template <typename T>
         constexpr T * null_pointer_to = static_cast<T *>(nullptr);
+
+        template <typename T, typename U> std::variant<T, U> either_impl(T const &, U const &) noexcept;
+        template <typename ... Ts, typename T> std::variant<Ts..., T> either_impl(std::variant<Ts...> const &, T const &) noexcept;
+        template <typename T, typename ... Ts> std::variant<T, Ts...> either_impl(T const &, std::variant<Ts...> const &) noexcept;
+        template <typename ... Ts, typename ... Us> std::variant<Ts..., Us...> either_impl(std::variant<Ts...> const &, std::variant<Us...> const &) noexcept;
     } // namespace detail
 
     template <typename T, template <typename ...> typename Template>
     concept instantiation_of = detail::instantiation_of_impl<Template>(detail::null_pointer_to<T>);
+
+    template <typename T, typename U>
+    using either = decltype(detail::either_impl(std::declval<T>(), std::declval<U>()));
 
     template <typename T>
     concept HasValidationCheck = requires(T option, typename T::parse_result_type parse_result) {
@@ -282,7 +290,8 @@ namespace clp
         using get_parse_result_type = typename T::parse_result_type;
     }
 
-    #define clp_parse_result_type(cli) clp::detail::get_parse_result_type<std::remove_cvref_t<decltype(cli)>>;
+    #define clp_parse_result_type(cli) clp::detail::get_parse_result_type<std::remove_cvref_t<decltype(cli)>>
+    #define clp_command_type(cli, i) std::variant_alternative_t<i, clp_parse_result_type(cli)>
 
     template <SingleOption ... Options>
     struct Compound : private Options...
@@ -318,7 +327,7 @@ namespace clp
         explicit constexpr Command(std::string_view name_, P parser_) noexcept : name(name_), parser(parser_) {}
 
         constexpr bool match(std::string_view text) const noexcept { return text == name; }
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept;
+        constexpr auto parse_command(int argc, char const * const argv[]) const noexcept;
 
         std::string_view name;
         P parser;
@@ -328,7 +337,7 @@ namespace clp
     concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv) 
     {
         {t.match(text)} -> std::same_as<bool>;
-        {t.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>;
+        {t.parse_command(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>;
     };
 
     template <CommandType ... Commands>
@@ -356,7 +365,7 @@ namespace clp
         using parse_result_type = ShowHelp;
 
         constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?"; }
-        constexpr std::optional<ShowHelp> parse(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        constexpr std::optional<ShowHelp> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
     };
 
     template <CommandType A, CommandType B>     constexpr CommandSelector<A, B> operator | (A a, B b) noexcept;
@@ -364,12 +373,14 @@ namespace clp
     template <CommandType A, CommandType ... B> constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept;
     template <CommandType ... A, CommandType ... B> constexpr CommandSelector<A..., B...> operator | (CommandSelector<A...> a, CommandSelector<B...> b) noexcept;
 
-    template <
-        Parser SharedOptions, 
-        instantiation_of<CommandSelector> Commands
-    >
+    template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
     struct CommandWithSharedOptions
     {
+        constexpr explicit CommandWithSharedOptions(SharedOptions shared_options_, Commands commands_) noexcept
+            : shared_options(std::move(shared_options_))
+            , commands(std::move(commands_))
+        {}
+
         struct parse_result_type
         {
             typename SharedOptions::parse_result_type shared_arguments;
@@ -385,7 +396,7 @@ namespace clp
     template <Parser P>
     struct SharedOptions
     {
-        constexpr SharedOptions(P parser_) noexcept : parser(std::move(parser_)) {}
+        constexpr explicit SharedOptions(P parser_) noexcept : parser(std::move(parser_)) {}
         P parser;
     };
 
@@ -395,6 +406,32 @@ namespace clp
     template <Parser P, CommandType ... PreviousCommands, CommandType NewCommand>
     constexpr auto operator | (CommandWithSharedOptions<P, CommandSelector<PreviousCommands...>> a, NewCommand b) noexcept
         -> CommandWithSharedOptions<P, CommandSelector<PreviousCommands..., NewCommand>>;
+
+    template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
+    struct CommandWithImplicitCommand
+    {
+        constexpr explicit CommandWithImplicitCommand(Commands commands_, ImplicitCommand implicit_command_) noexcept
+            : commands(std::move(commands_))
+            , implicit_command(std::move(implicit_command_))
+        {}
+
+        using parse_result_type = either<typename Commands::parse_result_type, typename ImplicitCommand::parse_result_type>;
+
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+
+        Commands commands;
+        ImplicitCommand implicit_command;
+    };
+
+    template <CommandType Command, Parser ImplicitCommand>
+    constexpr CommandWithImplicitCommand<CommandSelector<Command>, ImplicitCommand> operator | (Command command, ImplicitCommand implicit_command) noexcept;
+
+    template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
+    constexpr CommandWithImplicitCommand<Commands, ImplicitCommand> operator | (Commands commands, ImplicitCommand implicit_command) noexcept;
+
+    template <instantiation_of<CommandSelector> Commands, Parser CurrentImplicitCommand, Parser NewImplicitCommand>
+    constexpr auto operator | (CommandWithImplicitCommand<Commands, CurrentImplicitCommand> commands, NewImplicitCommand new_implicit_command) noexcept
+        -> CommandWithImplicitCommand<Commands, decltype(commands.implicit_command | new_implicit_command)>;
 
 } // namespace clp
 
