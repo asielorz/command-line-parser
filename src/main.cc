@@ -130,7 +130,7 @@ TEST_CASE("Default value for a pattern")
     }
     SECTION("Not found")
     {
-        auto const options = tests::parse(cli, {"-f=50"});
+        auto const options = tests::parse(cli, {});
 
         REQUIRE(options.has_value());
         REQUIRE(options->width == 1920); // Default value used because another value was not found
@@ -847,7 +847,7 @@ TEST_CASE("CommandSelector::to_string")
         )
         | tests::Help();
 
-    const std::string help_text = cli.to_string();
+    std::string const help_text = cli.to_string();
 
     constexpr auto expected =
         "open-window              Open a test window.\n"
@@ -877,7 +877,7 @@ TEST_CASE("CommandsWithSharedOptions::to_string")
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         );
 
-    const std::string help_text = cli.to_string();
+    std::string const help_text = cli.to_string();
 
     constexpr auto expected =
         "Shared options:\n"
@@ -912,7 +912,7 @@ TEST_CASE("CommandsWithImplicitCommand")
             ("Level to open in the editor.")
             .hint("level-name");
 
-    const std::string help_text = cli.to_string();
+    std::string const help_text = cli.to_string();
 
     constexpr auto expected =
         "Commands:\n"
@@ -930,6 +930,95 @@ TEST_CASE("CommandsWithImplicitCommand")
         ;
 
     REQUIRE(help_text == expected);
+}
+
+TEST_CASE("Single positional argument cli")
+{
+    constexpr auto cli = clp_Arg(int, width, "width")("Width of the screen in pixels");
+
+    SECTION("Found")
+    {
+        auto const options = tests::parse(cli, {"1920"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->width == 1920);
+    }
+    SECTION("Not found")
+    {
+        auto const options = tests::parse(cli, {});
+
+        REQUIRE(!options.has_value());
+    }
+    SECTION("Fail to parse")
+    {
+        auto const options = tests::parse(cli, {"foo"}); // Cannot parse an int from "foo"
+
+        REQUIRE(!options.has_value());
+    }
+}
+
+TEST_CASE("Positional arguments must be provided in order")
+{
+    constexpr auto cli =
+        clp_Arg(int, width, "width")("Width of the screen in pixels.")
+        | clp_Arg(std::string_view, username, "username")("Username to login with.");
+
+    SECTION("In order")
+    {
+        auto const options = tests::parse(cli, {"1920", "Foobar"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->width == 1920);
+        REQUIRE(options->username == "Foobar");
+    }
+    SECTION("Out of order")
+    {
+        auto const options = tests::parse(cli, {"Foobar", "1920"});
+
+        REQUIRE(!options.has_value());
+    }
+    SECTION("One missing")
+    {
+        auto const options = tests::parse(cli, {"1920"});
+
+        REQUIRE(!options.has_value());
+    }
+}
+
+TEST_CASE("A positional argument and a flag")
+{
+    constexpr auto cli =
+        clp_Arg(int, width, "width")("Width of the screen in pixels.")
+        | clp_Flag(fullscreen)["--fullscreen"]("Whether to start the application in fullscreen or not.");
+
+    SECTION("Only argument")
+    {
+        auto const options = tests::parse(cli, {"1920"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->width == 1920);
+        REQUIRE(options->fullscreen == false);
+    }
+    SECTION("Both")
+    {
+        auto const options = tests::parse(cli, {"1920", "--fullscreen"});
+
+        REQUIRE(options.has_value());
+        REQUIRE(options->width == 1920);
+        REQUIRE(options->fullscreen == true);
+    }
+    SECTION("Argument missing")
+    {
+        auto const options = tests::parse(cli, {"--fullscreen"});
+
+        REQUIRE(!options.has_value());
+    }
+    SECTION("Flag first")
+    {
+        auto const options = tests::parse(cli, {"--fullscreen", "1920"});
+
+        REQUIRE(!options.has_value());
+    }
 }
 
 // Tasks

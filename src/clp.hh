@@ -104,7 +104,7 @@ namespace clp
     template <typename Base>
     struct WithPattern : public Base
     {
-        constexpr explicit WithPattern(Base base, std::string_view pattern_) : Base(base), pattern(pattern_) {}
+        constexpr explicit WithPattern(Base base, std::string_view pattern_) : Base(base), pattern(pattern_) { assert(pattern[0] == '-'); }
 
         constexpr std::optional<std::string_view> match(std::string_view text) const noexcept
         {
@@ -185,7 +185,7 @@ namespace clp
         using parse_result_type = T;
         using value_type = typename T::value_type;
 
-        constexpr explicit Option(std::string_view type_name_) : type_name(type_name_) {}
+        constexpr explicit Option(std::string_view type_name_) noexcept : type_name(type_name_) {}
 
         constexpr std::optional<T> parse_impl(std::string_view argument_text) const noexcept
         {
@@ -283,7 +283,79 @@ namespace clp
             return OptionInterface<WithCustomHint<Base>>(WithCustomHint<Base>(*this, custom_hint));
         }
     };
+
+    template <OptionStruct T>
+    struct PositionalArgument
+    {
+        using parse_result_type = T;
+        using value_type = typename T::value_type;
+
+        constexpr explicit PositionalArgument(std::string_view name_, std::string_view type_name_) noexcept : name(name_), type_name(type_name_) {}
+
+        constexpr std::optional<T> parse_impl(std::string_view argument_text) const noexcept
+        {
+            std::optional<value_type> value = parse_traits<value_type>::parse(argument_text);
+            if (value)
+                return T{ std::move(*value) };
+            else
+                return std::nullopt;
+        }
+
+        constexpr std::string_view hint_text() const noexcept { return type_name; }
+
+        std::string_view name;
+
+    private:
+        std::string_view type_name;
+    };
+
+    template <typename Base>
+    struct PositionalArgumentInterface : public Base
+    {
+        explicit constexpr PositionalArgumentInterface(Base base) noexcept : Base(base) {}
+
+        constexpr auto parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>;
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
+        std::string to_string(int indentation = 0) const requires HasDescription<Base>;
+
+        constexpr PositionalArgumentInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
+        {
+            return PositionalArgumentInterface<WithDescription<Base>>(WithDescription<Base>{*this, description});
+        }
+
+        template <explicitly_convertible_to<typename Base::value_type> T>
+        constexpr PositionalArgumentInterface<WithDefaultValue<Base, T>> default_to(T default_value) const noexcept requires(!HasDefaultValue<Base>)
+        {
+            return PositionalArgumentInterface<WithDefaultValue<Base, T>>(WithDefaultValue<Base, T>(*this, std::move(default_value)));
+        }
+
+        template <typename ... Ts>
+        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(default_to(constant_range{ default_values... }))
+        {
+            return this->default_to(constant_range{ default_values... });
+        }
+
+        template <typename Predicate>
+        constexpr PositionalArgumentInterface<WithCheck<Base, Predicate>> check(Predicate predicate, std::string_view error_message) const noexcept
+        {
+            return PositionalArgumentInterface<WithCheck<Base, Predicate>>(WithCheck<Base, Predicate>(*this, predicate, error_message));
+        }
+
+        template <ParserFor<typename Base::value_type> ParserFunction>
+        constexpr PositionalArgumentInterface<WithCustomParser<Base, ParserFunction>> custom_parser(ParserFunction parser_function) const noexcept
+        {
+            return PositionalArgumentInterface<WithCustomParser<Base, ParserFunction>>(WithCustomParser<Base, ParserFunction>(*this, parser_function));
+        }
+
+        constexpr PositionalArgumentInterface<WithCustomHint<Base>> hint(std::string_view custom_hint) const noexcept
+        {
+            return PositionalArgumentInterface<WithCustomHint<Base>>(WithCustomHint<Base>(*this, custom_hint));
+        }
+    };
     
+    template <typename T>
+    concept SingleArgument = instantiation_of<T, PositionalArgumentInterface>;
+
     namespace detail
     {
         template <typename T>
@@ -294,9 +366,9 @@ namespace clp
     #define clp_command_type(cli, i) std::variant_alternative_t<i, clp_parse_result_type(cli)>
 
     template <SingleOption ... Options>
-    struct Compound : private Options...
+    struct CompoundOption : private Options...
     {
-        constexpr explicit Compound(Options... options) : Options(options)... {}
+        constexpr explicit CompoundOption(Options... options) noexcept : Options(options)... {}
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
@@ -310,10 +382,58 @@ namespace clp
         }
     };
 
-    template <SingleOption A, SingleOption B>         constexpr Compound<A, B> operator | (A a, B b) noexcept;
-    template <SingleOption ... A, SingleOption B>     constexpr Compound<A..., B> operator | (Compound<A...> a, B b) noexcept;
-    template <SingleOption A, SingleOption ... B>     constexpr Compound<A, B...> operator | (A a, Compound<B...> b) noexcept;
-    template <SingleOption ... A, SingleOption ... B> constexpr Compound<A..., B...> operator | (Compound<A...> a, Compound<B...> b) noexcept;
+    template <SingleOption A, SingleOption B>         constexpr CompoundOption<A, B> operator | (A a, B b) noexcept;
+    template <SingleOption ... A, SingleOption B>     constexpr CompoundOption<A..., B> operator | (CompoundOption<A...> a, B b) noexcept;
+    template <SingleOption A, SingleOption ... B>     constexpr CompoundOption<A, B...> operator | (A a, CompoundOption<B...> b) noexcept;
+    template <SingleOption ... A, SingleOption ... B> constexpr CompoundOption<A..., B...> operator | (CompoundOption<A...> a, CompoundOption<B...> b) noexcept;
+
+    template <SingleArgument ... Arguments>
+    struct CompoundArgument : private Arguments...
+    {
+        constexpr explicit CompoundArgument(Arguments... args) noexcept : Arguments(args)... {}
+
+        struct parse_result_type : public detail::get_parse_result_type<Arguments>... {};
+
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        std::string to_string(int indentation = 0) const;
+
+        template <SingleArgument T>
+        constexpr T const & access_argument() const noexcept
+        {
+            return static_cast<T const &>(*this);
+        }
+    };
+
+    template <SingleArgument A, SingleArgument B>         constexpr CompoundArgument<A, B> operator | (A a, B b) noexcept;
+    template <SingleArgument ... A, SingleArgument B>     constexpr CompoundArgument<A..., B> operator | (CompoundArgument<A...> a, B b) noexcept;
+    template <SingleArgument A, SingleArgument ... B>     constexpr CompoundArgument<A, B...> operator | (A a, CompoundArgument<B...> b) noexcept;
+    template <SingleArgument ... A, SingleArgument ... B> constexpr CompoundArgument<A..., B...> operator | (CompoundArgument<A...> a, CompoundArgument<B...> b) noexcept;
+
+    template <instantiation_of<CompoundArgument> Arguments, instantiation_of<CompoundOption> Options>
+    struct CompoundParser : private Arguments, private Options
+    {
+        constexpr explicit CompoundParser(Arguments args, Options opts) noexcept : Arguments(args), Options(opts) {}
+
+        struct parse_result_type : public detail::get_parse_result_type<Arguments>, public detail::get_parse_result_type<Options> {};
+
+        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        std::string to_string(int indentation = 0) const;
+
+        template <SingleOption T>
+        constexpr T const & access_option() const noexcept
+        {
+            return Options::template access_option<T>();
+        }
+
+        template <SingleArgument T>
+        constexpr T const & access_argument() const noexcept
+        {
+            return Arguments::template access_argument<T>();
+        }
+    };
+
+    template <SingleArgument A, SingleOption B> 
+    constexpr CompoundParser<CompoundArgument<A>, CompoundOption<B>> operator | (A a, B b) noexcept;
 
     template <typename T>
     concept Parser = requires(T const parser, int argc, char const * const * argv) { {parser.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>; };
