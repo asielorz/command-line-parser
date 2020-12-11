@@ -376,6 +376,62 @@ namespace clp
         return CompoundParser<CompoundArgument<A>, CompoundOption<B>>(CompoundArgument<A>(a), CompoundOption<B>(b));
     }
 
+    template <SingleArgument ... A, SingleOption B>
+    constexpr CompoundParser<CompoundArgument<A...>, CompoundOption<B>> operator | (CompoundArgument<A...> a, B b) noexcept
+    {
+        return CompoundParser<CompoundArgument<A...>, CompoundOption<B>>(a, CompoundOption<B>(b));
+    }
+
+    template <SingleArgument A, SingleOption ... B>
+    constexpr CompoundParser<CompoundArgument<A>, CompoundOption<B...>> operator | (A a, CompoundOption<B...> b) noexcept
+    {
+        return CompoundParser<CompoundArgument<A>, CompoundOption<B...>>(CompoundArgument<A>(a), b);
+    }
+
+    template <SingleArgument ... A, SingleOption ... B>
+    constexpr CompoundParser<CompoundArgument<A...>, CompoundOption<B...>> operator | (CompoundArgument<A...> a, CompoundOption<B...> b) noexcept
+    {
+        return CompoundParser<CompoundArgument<A...>, CompoundOption<B...>>(a, b);
+    }
+
+    template <SingleArgument NewArg, SingleArgument ... PrevArgs, SingleOption ... PrevOpts>
+    constexpr auto operator | (NewArg a, CompoundParser<CompoundArgument<PrevArgs...>, CompoundOption<PrevOpts...>> b) noexcept
+        -> CompoundParser<CompoundArgument<NewArg, PrevArgs...>, CompoundOption<PrevOpts...>>
+    {
+        return CompoundParser<CompoundArgument<NewArg, PrevArgs...>, CompoundOption<PrevOpts...>>(a | b.access_arguments(), b.access_options());
+    }
+
+    template <SingleArgument ... NewArgs, SingleArgument ... PrevArgs, SingleOption ... PrevOpts>
+    constexpr auto operator | (CompoundArgument<NewArgs...> a, CompoundParser<CompoundArgument<PrevArgs...>, CompoundOption<PrevOpts...>> b) noexcept
+        -> CompoundParser<CompoundArgument<NewArgs..., PrevArgs...>, CompoundOption<PrevOpts...>>
+    {
+        return CompoundParser<CompoundArgument<NewArgs..., PrevArgs...>, CompoundOption<PrevOpts...>>(a | b.access_arguments(), b.access_options());
+    }
+
+    template <SingleArgument ... A, SingleOption ... PrevOpts, SingleOption NewOpt>
+    constexpr auto operator | (CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts...>> a, NewOpt b) noexcept
+        -> CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpt>>
+    {
+        return CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpt>>(a.access_arguments, a.access_options | b);
+    }
+
+    template <SingleArgument ... A, SingleOption ... PrevOpts, SingleOption ... NewOpts>
+    constexpr auto operator | (CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts...>> a, CompoundOption<NewOpts...> b) noexcept
+        -> CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpts...>>
+    {
+        return CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpts...>>(a.access_arguments, a.access_options | b);
+    }
+
+    template <typename ... ArgsA, typename ... OptsA, typename ... ArgsB, typename ... OptsB>
+    constexpr auto operator | (CompoundParser<CompoundArgument<ArgsA...>, CompoundOption<OptsA...>> a, CompoundParser<CompoundArgument<ArgsB...>, CompoundOption<OptsB...>> b) noexcept
+        -> CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>
+    {
+        return CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>(
+            a.access_arguments() | b.access_arguments(),
+            a.access_options() | b.access_options()
+        );
+    }
+
     //*****************************************************************************************************************************************************
     // CommandSelector
 

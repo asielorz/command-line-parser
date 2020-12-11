@@ -419,21 +419,48 @@ namespace clp
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
         std::string to_string(int indentation = 0) const;
 
-        template <SingleOption T>
-        constexpr T const & access_option() const noexcept
+        constexpr Options const & access_options() const noexcept
         {
-            return Options::template access_option<T>();
+            return *this;
         }
 
-        template <SingleArgument T>
-        constexpr T const & access_argument() const noexcept
+        constexpr Arguments const & access_arguments() const noexcept
         {
-            return Arguments::template access_argument<T>();
+            return *this;
         }
     };
 
     template <SingleArgument A, SingleOption B> 
     constexpr CompoundParser<CompoundArgument<A>, CompoundOption<B>> operator | (A a, B b) noexcept;
+
+    template <SingleArgument ... A, SingleOption B>
+    constexpr CompoundParser<CompoundArgument<A...>, CompoundOption<B>> operator | (CompoundArgument<A...> a, B b) noexcept;
+
+    template <SingleArgument A, SingleOption ... B>
+    constexpr CompoundParser<CompoundArgument<A>, CompoundOption<B...>> operator | (A a, CompoundOption<B...> b) noexcept;
+
+    template <SingleArgument ... A, SingleOption ... B>
+    constexpr CompoundParser<CompoundArgument<A...>, CompoundOption<B...>> operator | (CompoundArgument<A...> a, CompoundOption<B...> b) noexcept;
+
+    template <SingleArgument NewArg, SingleArgument ... PrevArgs, SingleOption ... PrevOpts>
+    constexpr auto operator | (NewArg a, CompoundParser<CompoundArgument<PrevArgs...>, CompoundOption<PrevOpts...>> b) noexcept
+        -> CompoundParser<CompoundArgument<NewArg, PrevArgs...>, CompoundOption<PrevOpts...>>;
+
+    template <SingleArgument ... NewArgs, SingleArgument ... PrevArgs, SingleOption ... PrevOpts>
+    constexpr auto operator | (CompoundArgument<NewArgs...> a, CompoundParser<CompoundArgument<PrevArgs...>, CompoundOption<PrevOpts...>> b) noexcept
+        -> CompoundParser<CompoundArgument<NewArgs..., PrevArgs...>, CompoundOption<PrevOpts...>>;
+
+    template <SingleArgument ... A, SingleOption ... PrevOpts, SingleOption NewOpt>
+    constexpr auto operator | (CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts...>> a, NewOpt b) noexcept
+        -> CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpt>>;
+
+    template <SingleArgument ... A, SingleOption ... PrevOpts, SingleOption ... NewOpts>
+    constexpr auto operator | (CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts...>> a, CompoundOption<NewOpts...> b) noexcept
+        -> CompoundParser<CompoundArgument<A...>, CompoundOption<PrevOpts..., NewOpts...>>;
+
+    template <typename ... ArgsA, typename ... OptsA, typename ... ArgsB, typename ... OptsB>
+    constexpr auto operator | (CompoundParser<CompoundArgument<ArgsA...>, CompoundOption<OptsA...>> a, CompoundParser<CompoundArgument<ArgsB...>, CompoundOption<OptsB...>> b) noexcept
+        -> CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>;
 
     template <typename T>
     concept Parser = requires(T const parser, int argc, char const * const * argv) { {parser.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>; };

@@ -1026,4 +1026,3 @@ TEST_CASE("A positional argument and a flag")
 //     - Decide whether to use variant or expected. (Maybe expected from aeh?)
 //     - Decide whether error is a structure (convertible to string) or a string directly.
 //     - Maybe go with string first for simplicity and decide whether to change it to a structure in the future.
-// - Positional arguments
