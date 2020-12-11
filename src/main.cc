@@ -295,11 +295,11 @@ TEST_CASE("Combining several parsers in commands")
     using clp::Command;
 
     constexpr auto cli = 
-        Command("open-window", 
+        Command("open-window", "",
             clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
             clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | Command("fetch-url", 
+        | Command("fetch-url", "",
             clp_Opt(std::string, url)["--url"]("Url to fetch") |
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
@@ -426,11 +426,11 @@ struct overload : public Ts...
 TEST_CASE("Help command creates a command that matches --help and indicates the user code that it should print the help")
 {
     constexpr auto cli = 
-        clp::Command("open-window", 
+        clp::Command("open-window", "",
             clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
             clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url",
+        | clp::Command("fetch-url", "",
             clp_Opt(std::string, url)["--url"]("Url to fetch") |
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
@@ -728,11 +728,11 @@ TEST_CASE("Commands with shared options")
                 .default_to("."sv)
             | clp_Flag(dry_run) ["--dry-run"]
         ) 
-        | clp::Command("open-window",
+        | clp::Command("open-window", "",
             clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
             clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url",
+        | clp::Command("fetch-url", "",
             clp_Opt(std::string, url)["--url"]("Url to fetch") |
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
@@ -813,3 +813,110 @@ TEST_CASE("Commands with implicit command")
         ),  *options);
     }
 }
+
+TEST_CASE("CommandSelector::to_string")
+{
+    constexpr auto cli =
+        clp::Command("open-window", "Open a test window.",
+            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        )
+        | clp::Command("fetch-url", "Fetch the given url and print the HTTP response.",
+            clp_Opt(std::string, url)["--url"]("Url to fetch") |
+            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        )
+        | clp::Help();
+
+    const std::string help_text = cli.to_string();
+
+    constexpr auto expected =
+        "open-window              Open a test window.\n"
+        "fetch-url                Fetch the given url and print the HTTP response.\n"
+        "help, --help, -h, -?     Show help about the program or a specific command.\n"
+        ;
+
+    REQUIRE(help_text == expected);
+}
+
+TEST_CASE("CommandsWithSharedOptions::to_string")
+{
+    constexpr auto cli =
+        clp::SharedOptions(
+            clp_Opt(std::string, root_path)["--root-path"]("Root directory of the project.")
+                .default_to("."sv)
+                .hint("path")
+            | clp_Flag(dry_run) ["--dry-run"]("Print the actions that the command would perform without making any change.")
+        ) 
+        | clp::Command("open-window", "Open a test window.",
+            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        )
+        | clp::Command("fetch-url", "Fetch the given url and print the HTTP response.",
+            clp_Opt(std::string, url)["--url"]("Url to fetch") |
+            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        );
+
+    const std::string help_text = cli.to_string();
+
+    constexpr auto expected =
+        "Shared options:\n"
+        "  --root-path <path>                    Root directory of the project.\n"
+        "                                        By default: .\n"
+        "  --dry-run <bool>                      Print the actions that the command would perform without making any change.\n"
+        "                                        By default: false\n"
+        "                                        Implicitly: true\n"
+        "\n"
+        "Commands:\n"
+        "  open-window            Open a test window.\n"
+        "  fetch-url              Fetch the given url and print the HTTP response.\n"
+        ;
+
+    REQUIRE(help_text == expected);
+}
+
+TEST_CASE("CommandsWithImplicitCommand")
+{
+    constexpr auto cli = clp::Help()
+        | clp_Opt(int, width)["-w"]["--width"]
+            ("Width of the screen in pixels.")
+            .default_to(1920)
+        | clp_Opt(int, height)["-h"]["--height"]
+            ("Height of the screen in pixels.")
+            .default_to(1080)
+        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            ("Whether to start the application in fullscreen or not.")
+            .default_to(false)
+            .implicitly(true)
+        | clp_Opt(std::string, starting_level) ["--starting-level"]
+            ("Level to open in the editor.")
+            .hint("level-name");
+
+    const std::string help_text = cli.to_string();
+
+    constexpr auto expected =
+        "Commands:\n"
+        "  help, --help, -h, -?   Show help about the program or a specific command.\n"
+        "\n"
+        "Options:\n"
+        "  -w, --width <int>                     Width of the screen in pixels.\n"
+        "                                        By default: 1920\n"
+        "  -h, --height <int>                    Height of the screen in pixels.\n"
+        "                                        By default: 1080\n"
+        "  --fullscreen <bool>                   Whether to start the application in fullscreen or not.\n"
+        "                                        By default: false\n"
+        "                                        Implicitly: true\n"
+        "  --starting-level <level-name>         Level to open in the editor.\n"
+        ;
+
+    REQUIRE(help_text == expected);
+}
+
+// Tasks
+// - Refactor parse to make it return either a parse result or an error
+//     - Decide whether to use variant or expected. (Maybe expected from aeh?)
+//     - Decide whether error is a structure (convertible to string) or a string directly.
+//     - Maybe go with string first for simplicity and decide whether to change it to a structure in the future.
+// - Positional arguments
+// - Remove help

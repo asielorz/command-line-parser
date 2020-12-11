@@ -68,20 +68,6 @@ namespace clp
     #undef clp_Flag
     #define clp_Flag(var) clp_Opt(bool, var).default_to(false).implicitly(true)
 
-    template <SingleOption ... Options>
-    constexpr auto Compound<Options...>::parse2(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
-    {
-        using parse_result_type = typename Compound<Options...>::parse_result_type;
-
-        return [...opts = this->access_option<Options>().parse(argc, argv)]() mutable noexcept -> std::optional<parse_result_type>
-        {
-            if (!(opts && ...))
-                return std::nullopt;
-            else
-                return parse_result_type{std::move(*opts)...};
-        }();
-    }
-
     template <SingleOption Option>
     using option_parse_result = std::optional<std::optional<typename Option::parse_result_type>>;
 
@@ -200,10 +186,32 @@ namespace clp
         return clp::detail::parse_impl<Commands...>(*this, argc, argv);
     }
 
+    template <CommandType ... Commands>
+    std::string CommandSelector<Commands...>::to_string(int indentation) const noexcept
+    {
+        return (access_command<Commands>().to_string(indentation) + ...);
+    }
+
     template <Parser P>
     constexpr auto Command<P>::parse_command(int argc, char const * const argv[]) const noexcept
     { 
         return parser.parse(argc - 1, argv + 1);
+    }
+
+    template <Parser P>
+    std::string Command<P>::to_string(int indentation) const noexcept
+    {
+        constexpr int column_width = 25;
+
+        std::string out;
+
+        out.append(indentation, ' ');
+        out += name;
+        while (out.size() < column_width) out.push_back(' ');
+        out += description;
+        out += '\n';
+
+        return out;
     }
 
     template <CommandType A, CommandType B>
@@ -231,11 +239,13 @@ namespace clp
     }
 
     template <typename Base>
-    std::string OptionInterface<Base>::to_string() const requires HasDescription<Base>
+    std::string OptionInterface<Base>::to_string(int indentation) const requires HasDescription<Base>
     {
         constexpr int column_width = 40;
 
-        std::string out = this->patterns_to_string();
+        std::string out;
+        out.append(indentation, ' ');
+        out += this->patterns_to_string();
         out += " <";
         out += this->hint_text();
         out += ">";
@@ -263,15 +273,12 @@ namespace clp
     }
 
     template <SingleOption ... Options>
-    std::string Compound<Options...>::to_string() const
+    std::string Compound<Options...>::to_string(int indentation) const
     {
-        return (this->template access_option<Options>().to_string() + ...);
+        return (this->template access_option<Options>().to_string(indentation) + ...);
     }
 
-    template <
-        Parser SharedOptions,
-        instantiation_of<CommandSelector> Commands
-    >
+    template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
     constexpr auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
     {
         auto const it = std::find_if(argv, argv + argc, [this](char const * arg) { return commands.match(arg); });
@@ -291,6 +298,20 @@ namespace clp
             return std::nullopt;
 
         return parse_result_type{std::move(*shared_arguments), std::move(*command)};
+    }
+
+    template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
+    std::string CommandWithSharedOptions<SharedOptions, Commands>::to_string(int indentation) const noexcept
+    {
+        std::string out;
+        out.append(indentation, ' ');
+        out += "Shared options:\n";
+        out += shared_options.to_string(indentation + 2);
+        out += '\n';
+        out.append(indentation, ' ');
+        out += "Commands:\n";
+        out += commands.to_string(indentation + 2);
+        return out;
     }
 
     template <Parser P, CommandType Command>
@@ -319,6 +340,20 @@ namespace clp
         }
         else
             return implicit_command.parse(argc, argv);
+    }
+
+    template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
+    std::string CommandWithImplicitCommand<Commands, ImplicitCommand>::to_string(int indentation) const noexcept
+    {
+        std::string out;
+        out.append(indentation, ' ');
+        out += "Commands:\n";
+        out += commands.to_string(indentation + 2);
+        out += '\n';
+        out.append(indentation, ' ');
+        out += "Options:\n";
+        out += implicit_command.to_string(indentation + 2);
+        return out;
     }
 
     template <CommandType Command, Parser ImplicitCommand>

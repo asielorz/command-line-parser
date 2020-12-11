@@ -230,7 +230,7 @@ namespace clp
 
         constexpr auto parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>;
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
-        std::string to_string() const requires HasDescription<Base>;
+        std::string to_string(int indentation = 0) const requires HasDescription<Base>;
 
         constexpr OptionInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
         {
@@ -301,8 +301,7 @@ namespace clp
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
-        constexpr auto parse2(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
-        std::string to_string() const;
+        std::string to_string(int indentation = 0) const;
 
         template <SingleOption T>
         constexpr T const & access_option() const noexcept
@@ -324,20 +323,27 @@ namespace clp
     {
         using parse_result_type = typename P::parse_result_type;
 
-        explicit constexpr Command(std::string_view name_, P parser_) noexcept : name(name_), parser(parser_) {}
+        explicit constexpr Command(std::string_view name_, std::string_view description_, P parser_) noexcept 
+            : name(name_)
+            , parser(parser_)
+            , description(description_)
+        {}
 
         constexpr bool match(std::string_view text) const noexcept { return text == name; }
         constexpr auto parse_command(int argc, char const * const argv[]) const noexcept;
+        std::string to_string(int indentation) const noexcept;
 
         std::string_view name;
+        std::string_view description;
         P parser;
     };
 
     template <typename T>
-    concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv) 
+    concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv, int indentation) 
     {
         {t.match(text)} -> std::same_as<bool>;
         {t.parse_command(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>;
+        {t.to_string(indentation)} -> std::same_as<std::string>;
     };
 
     template <CommandType ... Commands>
@@ -350,6 +356,8 @@ namespace clp
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
 
         constexpr bool match(std::string_view text) const noexcept { return (access_command<Commands>().match(text) || ...); }
+
+        std::string to_string(int indentation = 0) const noexcept;
 
         template <CommandType C>
         constexpr C const & access_command() const noexcept
@@ -364,8 +372,17 @@ namespace clp
     {
         using parse_result_type = ShowHelp;
 
-        constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?"; }
+        constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
         constexpr std::optional<ShowHelp> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        std::string to_string(int indentation) const noexcept 
+        {
+            std::string result;
+            result.append(indentation, ' ');
+            result += "help, --help, -h, -?";
+            while (result.size() < 25) result += ' ';
+            result += "Show help about the program or a specific command.\n";
+            return result;
+        }
     };
 
     template <CommandType A, CommandType B>     constexpr CommandSelector<A, B> operator | (A a, B b) noexcept;
@@ -388,6 +405,7 @@ namespace clp
         };
 
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        std::string to_string(int indentation = 0) const noexcept;
 
         SharedOptions shared_options;
         Commands commands;
@@ -418,6 +436,7 @@ namespace clp
         using parse_result_type = either<typename Commands::parse_result_type, typename ImplicitCommand::parse_result_type>;
 
         constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        std::string to_string(int indentation = 0) const noexcept;
 
         Commands commands;
         ImplicitCommand implicit_command;
