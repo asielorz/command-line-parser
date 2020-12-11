@@ -21,6 +21,25 @@ namespace tests
     {
         return std::equal(v.begin(), v.end(), ilist.begin(), ilist.end());
     }
+
+    struct ShowHelp {};
+
+    struct Help
+    {
+        using parse_result_type = ShowHelp;
+
+        constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
+        constexpr std::optional<ShowHelp> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        std::string to_string(int indentation) const noexcept
+        {
+            std::string result;
+            result.append(indentation, ' ');
+            result += "help, --help, -h, -?";
+            while (result.size() < 25) result += ' ';
+            result += "Show help about the program or a specific command.\n";
+            return result;
+        }
+    };
 }
 
 int main()
@@ -435,10 +454,10 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         )
-        | clp::Help();
+        | tests::Help();
 
     constexpr auto visitor = overload(
-        [](clp::ShowHelp) { return true; },
+        [](tests::ShowHelp) { return true; },
         [](auto const &) { return false; }
     );
 
@@ -772,7 +791,7 @@ TEST_CASE("Commands with shared options")
 
 TEST_CASE("Commands with implicit command")
 {
-    constexpr auto cli = clp::Help()
+    constexpr auto cli = tests::Help()
         | clp_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
             .default_to(1920)
@@ -802,7 +821,7 @@ TEST_CASE("Commands with implicit command")
 
         REQUIRE(options.has_value());
         std::visit(overload(
-            [](clp::ShowHelp) { REQUIRE(false); },
+            [](tests::ShowHelp) { REQUIRE(false); },
             [](Args args) 
             {
                REQUIRE(args.width == 50);
@@ -826,7 +845,7 @@ TEST_CASE("CommandSelector::to_string")
             clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
             clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
         )
-        | clp::Help();
+        | tests::Help();
 
     const std::string help_text = cli.to_string();
 
@@ -878,7 +897,7 @@ TEST_CASE("CommandsWithSharedOptions::to_string")
 
 TEST_CASE("CommandsWithImplicitCommand")
 {
-    constexpr auto cli = clp::Help()
+    constexpr auto cli = tests::Help()
         | clp_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
             .default_to(1920)
@@ -919,4 +938,3 @@ TEST_CASE("CommandsWithImplicitCommand")
 //     - Decide whether error is a structure (convertible to string) or a string directly.
 //     - Maybe go with string first for simplicity and decide whether to change it to a structure in the future.
 // - Positional arguments
-// - Remove help

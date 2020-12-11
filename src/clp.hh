@@ -366,25 +366,6 @@ namespace clp
         }
     };
 
-    struct ShowHelp {};
-
-    struct Help
-    {
-        using parse_result_type = ShowHelp;
-
-        constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
-        constexpr std::optional<ShowHelp> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
-        std::string to_string(int indentation) const noexcept 
-        {
-            std::string result;
-            result.append(indentation, ' ');
-            result += "help, --help, -h, -?";
-            while (result.size() < 25) result += ' ';
-            result += "Show help about the program or a specific command.\n";
-            return result;
-        }
-    };
-
     template <CommandType A, CommandType B>     constexpr CommandSelector<A, B> operator | (A a, B b) noexcept;
     template <CommandType ... A, CommandType B> constexpr CommandSelector<A..., B> operator | (CommandSelector<A...> a, B b) noexcept;
     template <CommandType A, CommandType ... B> constexpr CommandSelector<A, B...> operator | (A a, CommandSelector<B...> b) noexcept;
