@@ -326,16 +326,16 @@ constexpr auto cli =
 	) 
 	| dodo::Command("open-window", "Open a test window",
 		dodo_Opt(int, width)["-w"]["--width"]
-			("Width of the screen") |
-		dodo_Opt(int, height)["-h"]["--height"]
+			("Width of the screen")
+		| dodo_Opt(int, height)["-h"]["--height"]
 			("Height of the screen")
 	)
 	| dodo::Command("fetch-url", "Fetch a URL and print the HTTP response.",
 		dodo_Opt(std::string, url)["--url"]
-			("Url to fetch") |
-		dodo_Opt(int, max_attempts)["--max-attempts"]
-			("Maximum number of attempts before failing") |
-		dodo_Opt(float, timeout)["--timeout"]
+			("Url to fetch")
+		| dodo_Opt(int, max_attempts)["--max-attempts"]
+			("Maximum number of attempts before failing")
+		| dodo_Opt(float, timeout)["--timeout"]
 			("Time to wait for response before failing the attempt")
 			.by_default(10.0f)
 	);
@@ -350,69 +350,34 @@ if (args->shared_options.dry_run)
 std::visit(some_visitor, args->command);
 ```
 
-## Bigger example
+## The implicit command
 
-This sample code shows how to declare a command line interface with several commands and subparsers for each command.
+Sometimes a parser may have a command that is assumed if no command is provided. The most common example for this is help. When we type `git commit help`, we want to invoke the `help` command of `git commit`. When we type `git commit -m="Implemented some very cool feature"`, no command is specified for git commit, so the default command (actually commiting) is executed. Dodo achieves this by joining a parser with a command or a command selector.
 
 ```cpp
-//************************************************************************************************************
-// open_editor.hh
-constexpr auto open_editor_cli = clp_Opt(int, width)["-w"]["--width"]
-        ("Width of the screen in pixels.")
-        .default_to(1920)
-        .check([](int width){ return width > 0 && width <= 3840; }, "Width must be between 0 and 3840 (4k).")
-    | clp_Opt(int, height)["-h"]["--height"]
-        ("Height of the screen in pixels.")
-        .default_to(1080)
-        .check([](int height) { return height > 0 && height <= 2160; }, "Height must be between 0 and 2160 (4k).")
-    | clp_Flag(fullscreen)["--fullscreen"]
-        ("Whether to start the application in fullscreen or not.")
-    | clp_Opt(std::string, starting_level) ["--starting-level"]
-        ("Level to open in the editor.")
-        .hint("level-name")
-        .check(is_level_name, "Level does not exist.");
+constexpr auto cli 
+	= dodo::Command("help", "Print help to the screen", dodo::NoopParser)
+	| dodo_Opt(std::string, url)["--url"]
+			("Url to fetch")
+	| dodo_Opt(int, max_attempts)["--max-attempts"]
+		("Maximum number of attempts before failing")
+	| dodo_Opt(float, timeout)["--timeout"]
+		("Time to wait for response before failing the attempt")
+		.by_default(10.0f);
+	
+auto const args = cli.parse(argc, argv);
 
-using OpenEditorArgs = clp_parse_result_type(open_editor_cli);
-int open_editor_main(OpenEditorArgs const & args);
+std::visit(dodo::overload
+(
+	[](dodo_command_type(cli, 0) const &) 
+	{
+		std::cout << cli.implicit_command.to_string() << '\n';
+	},
+	[](dodo_command_type(cli, 1) const & url_args) 
+	{
+		fetch_url(url_args->url, url_args->max_attempts, url_args->timeout);
+	}
+), *args);
 
-//************************************************************************************************************
-// bake_data.hh
-constexpr auto bake_data_cli = clp_Opt(std::string, level)["--level"]
-        ("Level to bake data for.")
-        .check(is_level_name, "Level does not exist.")
-    | clp_Opt(Platform, platform)["--platform"]
-        ("Platform for which to bake the data.")
-    | clp_Opt(GraphicsAPI, graphics_api)["--graphics-api"]
-        ("Graphics API for which to bake the data.")
-    | clp_Opt(unsigned, number_of_threads)["--num-threads"]
-        ("Number of threads to use in data generation.")
-        .default_to(8)
-        .check([](unsigned number_of_threads) { return number_of_threads > 0 && number_of_threads <= std::thread::hardware_concurrency(); }, "Invalid number of threads.");
-
-using BakeDataArgs = clp_parse_result_type(bake_data_cli);
-int bake_data_main(BakeDataArgs const & args);
-
-//************************************************************************************************************
-// main.cc
-int main(int argc, char const * const argv[])
-{
-    // Define command line interface as a composition of the interface of each system.
-    constexpr auto cli =
-        clp::Command("open-editor", open_editor_cli)
-        | clp::Command("bake-data", bake_data_cli);
-
-    auto const arguments = cli.parse(argc, argv);
-
-    if (arguments)
-    {
-        return std::visit(overload(
-            [](OpenEditorArgs const & args) { return open_editor_main(args); },
-            [](BakeDataArgs const & args) { return bake_data_main(args); }
-        ), *arguments);
-    }
-    else
-    {
-        return -1;
-    }
-}
+std::visit(some_visitor, args->command);
 ```

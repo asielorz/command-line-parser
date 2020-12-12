@@ -473,6 +473,13 @@ namespace dodo
     constexpr auto operator | (CompoundParser<CompoundArgument<ArgsA...>, CompoundOption<OptsA...>> a, CompoundParser<CompoundArgument<ArgsB...>, CompoundOption<OptsB...>> b) noexcept
         -> CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>;
 
+    struct NoopParser
+    {
+        struct parse_result_type {};
+
+        auto parse(int, char **) noexcept -> expected<parse_result_type, std::string> { return parse_result_type(); }
+    };
+
     template <typename T>
     concept Parser = requires(T const parser, int argc, char const * const * argv) { 
         {parser.parse(argc, argv)} -> std::same_as<expected<typename T::parse_result_type, std::string>>; 
