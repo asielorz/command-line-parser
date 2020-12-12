@@ -244,9 +244,109 @@ constexpr auto cli
                                        By default: anonymous
 ```
 
+## Options of vector types
+
+An option of a vector type takes a string with space separated list of arguments. Each of the space separated substrings is parsed as a separate element of the vector.
+
+```cpp
+enum struct Platform { windows, linux, server, ps4, xboxone, nintendo_switch };
+// Assuming dodo::parse_traits<Plafform> exist and does the obvious thing.
+
+constexpr auto cli
+	= dodo_Opt(std::vector<Platform>, platforms)
+		["--platforms"]
+		("Platforms for which to build.")
+		.by_default_range(Platform::windows, Platform::ps4);
+```
+
+The above can parse a string of the form `--platforms="windows linux xboxone"` and return a vector containing {Platform::windows, Platform::linux, Platform::xboxone}. `by_default_range` defines the set of values the vector will contain if nothing is provided. An equivalente `implicitly_range` also exist. These functions allow the parser to be constexpr, which would be impossible if it had to contain a vector.
+
 ## Commands
 
-// TODO
+A very common pattern for command line programs is to have a single executable that can perform more than one action. For example, the same git executable is used to pull, push, commit, branch... Git achieves this through commands. An invocation of git first selects the command and then provides the arguments for that command. Different commands take different arguments. Dodo models a command selector as a set of pairs of name and parser, which in turn returns a variant containing the result of the chosen command's parser.
+
+A command selector is declared by joining with the `operator |` two or more `dodo::Command` objects. A single command is not a parser, since it makes no sense to select between a single command.
+
+```cpp
+constexpr auto cli = 
+	dodo::Command("open-window", "Open a test window",
+		dodo_Opt(int, width)["-w"]["--width"]
+			("Width of the screen") |
+		dodo_Opt(int, height)["-h"]["--height"]
+			("Height of the screen")
+	)
+	| dodo::Command("fetch-url", "Fetch a URL and print the HTTP response.",
+		dodo_Opt(std::string, url)["--url"]
+			("Url to fetch") |
+		dodo_Opt(int, max_attempts)["--max-attempts"]
+			("Maximum number of attempts before failing") |
+		dodo_Opt(float, timeout)["--timeout"]
+			("Time to wait for response before failing the attempt")
+			.by_default(10.0f)
+	);
+```
+
+In order to access the results, the best option is to visit the variant. `dodo::overload` is a very convenient way of defining a visitor inline from several lambdas.
+
+```cpp
+auto const args = cli.parse(argc, argv);
+if (!result)
+{
+	std::cerr << result.error() << '\n';
+	exit(1);
+}
+
+std::visit(dodo::overload
+(
+	[](dodo_command_type(cli, 0) const & window_args) 
+	{
+		open_window(window_args->width, window_args->height); 
+	},
+	[](dodo_command_type(cli, 1) const & url_args) 
+	{
+		fetch_url(url_args->url, url_args->max_attempts, url_args->timeout);
+	}
+), *args);
+```
+
+## Commands with shared options
+
+Sometimes, all of the commands in a program share some arguments, even if they also take their own custom arguments. This can be achieved thorugh the `dodo::SharedArguments` class, that can be combined with a command selector to form a command selector with default options. The result of parsing will then contain two members. A struct with the shared arguments called `shared_arguments` and a variant with the command called `command`.
+
+```cpp
+constexpr auto cli = 
+	dodo::SharedOptions(
+		dodo_Opt(std::string, root_path)["--root-path"]
+			("Path in which to operate.")
+			.by_default("."sv)
+		| dodo_Flag(dry_run) ["--dry-run"]
+			("Do not perform any change. Just print what the changes would be.")
+	) 
+	| dodo::Command("open-window", "Open a test window",
+		dodo_Opt(int, width)["-w"]["--width"]
+			("Width of the screen") |
+		dodo_Opt(int, height)["-h"]["--height"]
+			("Height of the screen")
+	)
+	| dodo::Command("fetch-url", "Fetch a URL and print the HTTP response.",
+		dodo_Opt(std::string, url)["--url"]
+			("Url to fetch") |
+		dodo_Opt(int, max_attempts)["--max-attempts"]
+			("Maximum number of attempts before failing") |
+		dodo_Opt(float, timeout)["--timeout"]
+			("Time to wait for response before failing the attempt")
+			.by_default(10.0f)
+	);
+	
+auto const args = cli.parse(argc, argv);
+
+if (args->shared_options.dry_run)
+{
+	// ...
+}
+
+std::visit(some_visitor, args->command);
+```
 
 ## Bigger example
 

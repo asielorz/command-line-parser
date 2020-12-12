@@ -435,13 +435,6 @@ TEST_CASE("Printing help without word wrap and without commands")
     REQUIRE(str == expected);
 }
 
-template <typename ... Ts>
-struct overload : public Ts...
-{
-    constexpr explicit overload(Ts ... ts) noexcept : Ts(ts)... {}
-    using Ts::operator()...;
-};
-
 TEST_CASE("Help command creates a command that matches --help and indicates the user code that it should print the help")
 {
     constexpr auto cli = 
@@ -456,7 +449,7 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
         )
         | tests::Help();
 
-    constexpr auto visitor = overload(
+    constexpr auto visitor = dodo::overload(
         [](tests::ShowHelp) { return true; },
         [](auto const &) { return false; }
     );
@@ -809,7 +802,7 @@ TEST_CASE("Commands with implicit command")
         using Args = dodo_command_type(cli, 1);
 
         REQUIRE(options.has_value());
-        std::visit(overload(
+        std::visit(dodo::overload(
             [](tests::ShowHelp) { REQUIRE(false); },
             [](Args args) 
             {

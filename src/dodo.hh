@@ -37,6 +37,13 @@ namespace dodo
     template <typename T, typename U>
     using either = decltype(detail::either_impl(std::declval<T>(), std::declval<U>()));
 
+    template <typename ... Ts>
+    struct overload : public Ts...
+    {
+        constexpr explicit overload(Ts ... ts) noexcept : Ts(ts)... {}
+        using Ts::operator()...;
+    };
+
     template <typename T>
     concept HasValidationCheck = requires(T option, typename T::parse_result_type parse_result) {
         {option.validate(parse_result)} -> std::same_as<std::optional<std::string_view>>;
