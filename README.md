@@ -352,7 +352,7 @@ std::visit(some_visitor, args->command);
 
 ## The implicit command
 
-Sometimes a parser may have a command that is assumed if no command is provided. The most common example for this is help. When we type `git commit help`, we want to invoke the `help` command of `git commit`. When we type `git commit -m="Implemented some very cool feature"`, no command is specified for git commit, so the default command (actually commiting) is executed. Dodo achieves this by joining a parser with a command or a command selector.
+Sometimes a parser may have a command that is assumed if no command is provided. The most common example for this is help. When we type `git commit help`, we want to invoke the `help` command of `git commit`. When we type `git commit -m="Implemented some very cool feature"`, no command is specified for `git commit`, so the default command (actually commiting) is executed. Dodo achieves this by joining a parser with a command or a command selector.
 
 ```cpp
 constexpr auto cli 
