@@ -250,7 +250,7 @@ An option of a vector type takes a string with space separated list of arguments
 
 ```cpp
 enum struct Platform { windows, linux, server, ps4, xboxone, nintendo_switch };
-// Assuming dodo::parse_traits<Plafform> exist and does the obvious thing.
+// Assuming dodo::parse_traits<Platform> exist and does the obvious thing.
 
 constexpr auto cli
 	= dodo_Opt(std::vector<Platform>, platforms)
@@ -259,7 +259,7 @@ constexpr auto cli
 		.by_default_range(Platform::windows, Platform::ps4);
 ```
 
-The above can parse a string of the form `--platforms="windows linux xboxone"` and return a vector containing {Platform::windows, Platform::linux, Platform::xboxone}. `by_default_range` defines the set of values the vector will contain if nothing is provided. An equivalente `implicitly_range` also exist. These functions allow the parser to be constexpr, which would be impossible if it had to contain a vector.
+The above can parse a string of the form `--platforms="windows linux xboxone"` and return a vector containing `{Platform::windows, Platform::linux, Platform::xboxone}`. `by_default_range` defines the set of values the vector will contain if nothing is provided. An equivalent `implicitly_range` also exist. These functions allow the parser to be constexpr (by using a `dodo::constant_range` behind the hood), which would be impossible if it had to contain a vector.
 
 ## Commands
 
