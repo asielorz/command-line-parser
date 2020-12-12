@@ -36,7 +36,7 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Grouping of short arguments. E.g. having `-rf` mean the same as `-r -f`
 
-- Option name and value in different arguments.
+- Option name and value in different arguments.  
 E.g. having `--path C://Users/foo/Desktop/` mean the same as `--path=C://Users/foo/Desktop/`
 
 ## Using
