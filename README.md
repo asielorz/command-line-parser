@@ -88,7 +88,7 @@ auto const window_handle = open_window(args->width, args->height, args->fullscre
 auto const connection_handle = start_session(server_url, args->username);
 ```
 
-`dodo_Opt` specifies named options that start with `-`. So the program above could be invoked with the command line `-w=1920 -h=1080 -n=foobar --fullscreen=true` for example. The order of the arguments is not important since they are found by name. The user must input the arguments as `--name=value`. Inputing arguments separated by a space as `--name value` is *not* supported.
+`dodo_Opt` specifies named options that start with `-`. So the program above could be invoked with the command line `-w=1920 -h=1080 -n=foobar --fullscreen=true` for example. The order of the arguments is not important since they are found by name. The user must input the arguments as `--name=value`. Inputing arguments separated by a space as `--name value` is **not** supported.
 
 For positional arguments `dodo_Arg` is used. With `dodo_Arg`, the user does not need to type the name of the option. However, positional arguments must be given in order and before named options. For example:
 
