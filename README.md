@@ -393,11 +393,18 @@ std::visit(some_visitor, args->command);
 
 ### The implicit command
 
-Sometimes a parser may have a command that is assumed if no command is provided. The most common example for this is help. When we type `git commit help`, we want to invoke the `help` command of `git commit`. When we type `git commit -m="Implemented some very cool feature"`, no command is specified for `git commit`, so the default command (actually commiting) is executed. Dodo achieves this by joining a parser with a command or a command selector.
+Sometimes a parser may have a command that is assumed if no command is provided. The most common example for this is help. Let us imagine as an example a program that can either print its help text, print its version, or actually do the work it is supposed to do. There would be three possible ways of invoking this program:
+
+- `program.exe help`
+- `program.exe version`
+- `program.exe --some-option=5 --other-option=www.url.com`
+
+The third command does not have a command name. It is assumed that it is selected because none of the other commands is named. That is the implicit command. The most frequent use case is for when the name of the program already describes what the implicit command does.
 
 ```cpp
 constexpr auto cli 
-	= dodo::Command("help", "Print help to the screen", dodo::NoopParser)
+	= dodo::Command("help", "Print help to the screen", dodo::noop_parser<struct Help>)
+	| dodo::Command("version", "Print the program's version to the screen", dodo::noop_parser<struct Version>)
 	| dodo_Opt(std::string, url)["--url"]
 			("Url to fetch")
 	| dodo_Opt(int, max_attempts)["--max-attempts"]
@@ -414,7 +421,11 @@ std::visit(dodo::overload
 	{
 		std::cout << cli.implicit_command.to_string() << '\n';
 	},
-	[](dodo_command_type(cli, 1) const & url_args) 
+	[](dodo_command_type(cli, 1) const &) 
+	{
+		std::cout << "fetch-url version 1.6.34" << '\n';
+	},
+	[](dodo_command_type(cli, 2) const & url_args) 
 	{
 		fetch_url(url_args->url, url_args->max_attempts, url_args->timeout);
 	}
@@ -422,3 +433,5 @@ std::visit(dodo::overload
 
 std::visit(some_visitor, args->command);
 ```
+
+`dodo::noop_parser` is an empty parser that always succeeds and returns an empty struct. The tag type given as template parameter allows several noop parsers to have different types as result type in order to have several of them in a variant.
