@@ -22,7 +22,7 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Typed arguments. Customization of conversion to and from string through traits and custom parsers.
 
-- dodo::expected<value, error> type for error propagation.
+- `dodo::expected<value, error>` type for error propagation.
 
 - Models POSIX standards for short and long opt behavior.
 
@@ -59,18 +59,18 @@ Parsers can be combined with `operator |`, like this:
 
 ```cpp
 constexpr auto cli
-    = dodo_Opt(int, width)
-        ["-w"]["--width"]
-        ("Width of the window in pixels.")
+	= dodo_Opt(int, width)
+		["-w"]["--width"]
+		("Width of the window in pixels.")
 	| dodo_Opt(int, height)
-        ["-h"]["--height"]
-        ("Height of the window in pixels.")
-    | dodo_Opt(bool, fullscreen)
-        ["--fullscreen"]
-        ("Start the application in fullscreen mode.")
-    | dodo_Opt(std::string, username)
-        ["-n"]["--name"]
-        ("Username used to log in to the server.");
+		["-h"]["--height"]
+		("Height of the window in pixels.")
+	| dodo_Opt(bool, fullscreen)
+		["--fullscreen"]
+		("Start the application in fullscreen mode.")
+	| dodo_Opt(std::string, username)
+		["-n"]["--name"]
+		("Username used to log in to the server.");
 ```
 
 In this case the structure returned by parse will contain the members `width`, `height`, `fullscreen` and `username`.
@@ -92,13 +92,13 @@ For positional arguments `dodo_Arg` is used. With `dodo_Arg`, the user does not 
 
 ```cpp
 constexpr auto cli
-    = dodo_Arg(int, width, "width")
-        ("Width of the window in pixels.")
+	= dodo_Arg(int, width, "width")
+		("Width of the window in pixels.")
 	| dodo_Arg(int, height, "height")
-        ("Height of the window in pixels.")
-    | dodo_Arg(std::string, username, "username")
-        ["-n"]["--name"]
-        ("Username used to log in to the server.");
+		("Height of the window in pixels.")
+	| dodo_Arg(std::string, username, "username")
+		["-n"]["--name"]
+		("Username used to log in to the server.");
 ```
 
 The parser above would succesfully parse the command line `1920 1980 foobar`, however the line `1920 foobar 1080` would fail because the program expects to find the height in second position, and there is no way of converting `"foobar"` to an integer.
@@ -108,21 +108,21 @@ The parser above would succesfully parse the command line `1920 1980 foobar`, ho
 By default, if a named argument is not provided by the user, the function will fail to parse. However, it is possible to provide a default value to an option. If one is provided and the user does not input an option, parsing will succeed and the option will take the default value. A default value is added to an option through the `by_default` method.
 
 constexpr auto cli
-    = dodo_Opt(int, width)
-        ["-w"]["--width"]
-        ("Width of the window in pixels.")
+	= dodo_Opt(int, width)
+		["-w"]["--width"]
+		("Width of the window in pixels.")
 		.by_default(1920)
 	| dodo_Opt(int, height)
-        ["-h"]["--height"]
-        ("Height of the window in pixels.")
+		["-h"]["--height"]
+		("Height of the window in pixels.")
 		.by_default(1080)
-    | dodo_Opt(bool, fullscreen)
-        ["--fullscreen"]
-        ("Start the application in fullscreen mode.")
+	| dodo_Opt(bool, fullscreen)
+		["--fullscreen"]
+		("Start the application in fullscreen mode.")
 		.by_default(false)
-    | dodo_Opt(std::string, username)
-        ["-n"]["--name"]
-        ("Username used to log in to the server.")
+	| dodo_Opt(std::string, username)
+		["-n"]["--name"]
+		("Username used to log in to the server.")
 		.by_default("anonymous"sv);
 ```
 
