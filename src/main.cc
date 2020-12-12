@@ -1,14 +1,14 @@
 #define CATCH_CONFIG_RUNNER
 #include "catch2/catch.hpp"
 
-#include "clp.hh"
+#include "dodo.hh"
 #include <typeinfo>
 
 using namespace std::literals;
 
 namespace tests
 {
-    template <clp::Parser P>
+    template <dodo::Parser P>
     constexpr auto parse(P parser, std::initializer_list<char const *> args) noexcept
     {
         int const argc = int(args.size());
@@ -29,7 +29,7 @@ namespace tests
         using parse_result_type = ShowHelp;
 
         constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
-        clp::expected<ShowHelp, std::string> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        dodo::expected<ShowHelp, std::string> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
         std::string to_string(int indentation) const noexcept
         {
             std::string result;
@@ -52,7 +52,7 @@ int main()
 TEST_CASE("Single argument CLI")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels");
 
@@ -87,7 +87,7 @@ TEST_CASE("Single argument CLI")
 TEST_CASE("Multiple patterns for an option")
 {
     constexpr auto cli =
-            clp_Opt(int, width)
+            dodo_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels");
 
@@ -116,10 +116,10 @@ TEST_CASE("Multiple patterns for an option")
 TEST_CASE("Default value for a pattern")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
-            .default_to(1920);
+            .by_default(1920);
 
     SECTION("Found")
     {
@@ -140,7 +140,7 @@ TEST_CASE("Default value for a pattern")
 TEST_CASE("Checks on a pattern that can make it fail even when found")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .check([](int width) { return width > 0; }, "Width cannot be negative.");
@@ -169,7 +169,7 @@ TEST_CASE("Checks on a pattern that can make it fail even when found")
 TEST_CASE("Multiple checks")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
             .check([](int width) { return width > 0; }, "Width cannot be negative.")
@@ -199,10 +199,10 @@ TEST_CASE("Multiple checks")
 TEST_CASE("Combining two options in a compound parser")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels")
-        | clp_Opt(int, height)
+        | dodo_Opt(int, height)
             ["-h"]["--height"]
             ("Height of the screen in pixels");
 
@@ -253,16 +253,16 @@ TEST_CASE("Combining two options in a compound parser")
 TEST_CASE("Combining three options in a compound parser where one is defaulted")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]["--width"]
             ("Width of the screen in pixels")
-        | clp_Opt(int, height)
+        | dodo_Opt(int, height)
             ["-h"]["--height"]
             ("Height of the screen in pixels")
-        | clp_Opt(bool, fullscreen)
+        | dodo_Opt(bool, fullscreen)
             ["--fullscreen"]
             ("Whether or not the program should start in fullscreen")
-            .default_to(false);
+            .by_default(false);
 
     SECTION("Fullscreen missing")
     {
@@ -299,10 +299,10 @@ TEST_CASE("Combining three options in a compound parser where one is defaulted")
 TEST_CASE("Defaulted value fails to parse")
 {
     constexpr auto cli =
-        clp_Opt(int, width)
+        dodo_Opt(int, width)
             ["-w"]
             ("Width of the screen in pixels")
-            .default_to(1920);
+            .by_default(1920);
 
     auto const options = tests::parse(cli, {"-w=foo"});
 
@@ -311,17 +311,17 @@ TEST_CASE("Defaulted value fails to parse")
 
 TEST_CASE("Combining several parsers in commands")
 {
-    using clp::Command;
+    using dodo::Command;
 
     constexpr auto cli = 
         Command("open-window", "",
-            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+            dodo_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            dodo_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
         | Command("fetch-url", "",
-            clp_Opt(std::string, url)["--url"]("Url to fetch") |
-            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+            dodo_Opt(std::string, url)["--url"]("Url to fetch") |
+            dodo_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            dodo_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").by_default(10.0f)
         );
         
     SECTION("First command")
@@ -363,9 +363,9 @@ TEST_CASE("Combining several parsers in commands")
 
 TEST_CASE("Implicit value allows for setting a value implicitly to an option if the option is mentioned but no value is assigned")
 {
-    constexpr auto cli = clp_Opt(bool, some_flag)["--flag"]
+    constexpr auto cli = dodo_Opt(bool, some_flag)["--flag"]
         ("Example boolean flag that defaults to false but is implicitly true when mentioned.")
-        .default_to(false)
+        .by_default(false)
         .implicitly(true);
 
     SECTION("Not found. Default, so false")
@@ -406,17 +406,17 @@ TEST_CASE("Implicit value allows for setting a value implicitly to an option if 
 
 TEST_CASE("Printing help without word wrap and without commands")
 {
-    constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
+    constexpr auto cli = dodo_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
-            .default_to(1920)
-        | clp_Opt(int, height)["-h"]["--height"]
+            .by_default(1920)
+        | dodo_Opt(int, height)["-h"]["--height"]
             ("Height of the screen in pixels.")
-            .default_to(1080)
-        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            .by_default(1080)
+        | dodo_Opt(bool, fullscreen)["--fullscreen"]
             ("Whether to start the application in fullscreen or not.")
-            .default_to(false)
+            .by_default(false)
             .implicitly(true)
-        | clp_Opt(std::string, starting_level) ["--starting-level"]
+        | dodo_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.");
 
     std::string const str = cli.to_string();
@@ -445,14 +445,14 @@ struct overload : public Ts...
 TEST_CASE("Help command creates a command that matches --help and indicates the user code that it should print the help")
 {
     constexpr auto cli = 
-        clp::Command("open-window", "",
-            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        dodo::Command("open-window", "",
+            dodo_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            dodo_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url", "",
-            clp_Opt(std::string, url)["--url"]("Url to fetch") |
-            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        | dodo::Command("fetch-url", "",
+            dodo_Opt(std::string, url)["--url"]("Url to fetch") |
+            dodo_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            dodo_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").by_default(10.0f)
         )
         | tests::Help();
 
@@ -499,7 +499,7 @@ TEST_CASE("Help command creates a command that matches --help and indicates the 
 
 TEST_CASE("A flag is a boolean option that is by default false and implicitly true")
 {
-    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.");
+    constexpr auto cli = dodo_Flag(some_flag)["--flag"]("Example flag.");
 
     SECTION("Not found. Default, so false")
     {
@@ -549,7 +549,7 @@ TEST_CASE("A custom parser may be given to an option")
             return std::nullopt;
     };
 
-    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
+    constexpr auto cli = dodo_Flag(some_flag)["--flag"]("Example flag.")
         .custom_parser(on_off_boolean_parser);
 
     SECTION("on -> true")
@@ -576,17 +576,17 @@ TEST_CASE("A custom parser may be given to an option")
 
 TEST_CASE("A custom hint may be given to a variable when the type name may not be readable enough.")
 {
-    constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
+    constexpr auto cli = dodo_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
-            .default_to(1920)
-        | clp_Opt(int, height)["-h"]["--height"]
+            .by_default(1920)
+        | dodo_Opt(int, height)["-h"]["--height"]
             ("Height of the screen in pixels.")
-            .default_to(1080)
-        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            .by_default(1080)
+        | dodo_Opt(bool, fullscreen)["--fullscreen"]
             ("Whether to start the application in fullscreen or not.")
-            .default_to(false)
+            .by_default(false)
             .implicitly(true)
-        | clp_Opt(std::string, starting_level) ["--starting-level"]
+        | dodo_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.")
             .hint("level-name");
 
@@ -608,9 +608,9 @@ TEST_CASE("A custom hint may be given to a variable when the type name may not b
 
 TEST_CASE("Implicit and default values can be of types different to the value type, allowing for constexpr parsers for std::string by using string views")
 {
-    constexpr auto cli = clp_Opt(std::string, starting_level) ["--starting-level"]
+    constexpr auto cli = dodo_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.")
-            .default_to("new-level"sv)
+            .by_default("new-level"sv)
             .implicitly("main-world"sv)
             .hint("level-name");
 
@@ -663,7 +663,7 @@ std::ostream & operator << (std::ostream & os, v<T> v)
 
 TEST_CASE("Option of vector type")
 {
-    constexpr auto cli = clp_Opt(std::vector<int>, values) ["--values"]
+    constexpr auto cli = dodo_Opt(std::vector<int>, values) ["--values"]
             ("Some test integers.")
             .default_to_range(1, 2, 3)
             .implicitly_range(0, 5, 4, 5);
@@ -693,7 +693,7 @@ TEST_CASE("Option of vector type")
 
 TEST_CASE("Printing parsers of vectors")
 {
-    constexpr auto cli = clp_Opt(std::vector<int>, values) ["--values"]
+    constexpr auto cli = dodo_Opt(std::vector<int>, values) ["--values"]
             ("Some test integers.")
             .default_to_range(1, 2, 3)
             .implicitly_range(0, 5, 4, 5);
@@ -712,9 +712,9 @@ TEST_CASE("Printing parsers of vectors")
 TEST_CASE("Unrecognized arguments are an error")
 {
     constexpr auto cli =
-        clp_Opt(int, width) ["-w"]["--width"]
-        | clp_Opt(int, height) ["-h"]["--height"]
-        | clp_Opt(bool, fullscreen) ["--fullscreen"];
+        dodo_Opt(int, width) ["-w"]["--width"]
+        | dodo_Opt(int, height) ["-h"]["--height"]
+        | dodo_Opt(bool, fullscreen) ["--fullscreen"];
 
     auto const options = tests::parse(cli, {"-w=10", "-h=6", "--fullscreen=true", "--unrecognized=5"});
 
@@ -723,27 +723,27 @@ TEST_CASE("Unrecognized arguments are an error")
 
 TEST_CASE("instantiation_of is a concept that checks if a type is an instantiation of a template")
 {
-    STATIC_REQUIRE(clp::instantiation_of<std::vector<int>, std::vector>);
-    STATIC_REQUIRE(!clp::instantiation_of<int, std::vector>);
-    STATIC_REQUIRE(clp::instantiation_of<std::string, std::basic_string>);
+    STATIC_REQUIRE(dodo::instantiation_of<std::vector<int>, std::vector>);
+    STATIC_REQUIRE(!dodo::instantiation_of<int, std::vector>);
+    STATIC_REQUIRE(dodo::instantiation_of<std::string, std::basic_string>);
 }
 
 TEST_CASE("Commands with shared options")
 {
     constexpr auto cli =
-        clp::SharedOptions(
-            clp_Opt(std::string, root_path)["--root-path"]
-                .default_to("."sv)
-            | clp_Flag(dry_run) ["--dry-run"]
+        dodo::SharedOptions(
+            dodo_Opt(std::string, root_path)["--root-path"]
+                .by_default("."sv)
+            | dodo_Flag(dry_run) ["--dry-run"]
         ) 
-        | clp::Command("open-window", "",
-            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        | dodo::Command("open-window", "",
+            dodo_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            dodo_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url", "",
-            clp_Opt(std::string, url)["--url"]("Url to fetch") |
-            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        | dodo::Command("fetch-url", "",
+            dodo_Opt(std::string, url)["--url"]("Url to fetch") |
+            dodo_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            dodo_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").by_default(10.0f)
         );
 
     SECTION("Shared options are given before the command")
@@ -781,17 +781,17 @@ TEST_CASE("Commands with shared options")
 TEST_CASE("Commands with implicit command")
 {
     constexpr auto cli = tests::Help()
-        | clp_Opt(int, width)["-w"]["--width"]
+        | dodo_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
-            .default_to(1920)
-        | clp_Opt(int, height)["-h"]["--height"]
+            .by_default(1920)
+        | dodo_Opt(int, height)["-h"]["--height"]
             ("Height of the screen in pixels.")
-            .default_to(1080)
-        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            .by_default(1080)
+        | dodo_Opt(bool, fullscreen)["--fullscreen"]
             ("Whether to start the application in fullscreen or not.")
-            .default_to(false)
+            .by_default(false)
             .implicitly(true)
-        | clp_Opt(std::string, starting_level) ["--starting-level"]
+        | dodo_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.")
             .hint("level-name");
 
@@ -806,7 +806,7 @@ TEST_CASE("Commands with implicit command")
     {
         auto const options = tests::parse(cli, {"-w=50", "-h=40", "--starting-level=foo"});
 
-        using Args = clp_command_type(cli, 1);
+        using Args = dodo_command_type(cli, 1);
 
         REQUIRE(options.has_value());
         std::visit(overload(
@@ -825,14 +825,14 @@ TEST_CASE("Commands with implicit command")
 TEST_CASE("CommandSelector::to_string")
 {
     constexpr auto cli =
-        clp::Command("open-window", "Open a test window.",
-            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        dodo::Command("open-window", "Open a test window.",
+            dodo_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            dodo_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url", "Fetch the given url and print the HTTP response.",
-            clp_Opt(std::string, url)["--url"]("Url to fetch") |
-            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        | dodo::Command("fetch-url", "Fetch the given url and print the HTTP response.",
+            dodo_Opt(std::string, url)["--url"]("Url to fetch") |
+            dodo_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            dodo_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").by_default(10.0f)
         )
         | tests::Help();
 
@@ -850,20 +850,20 @@ TEST_CASE("CommandSelector::to_string")
 TEST_CASE("CommandsWithSharedOptions::to_string")
 {
     constexpr auto cli =
-        clp::SharedOptions(
-            clp_Opt(std::string, root_path)["--root-path"]("Root directory of the project.")
-                .default_to("."sv)
+        dodo::SharedOptions(
+            dodo_Opt(std::string, root_path)["--root-path"]("Root directory of the project.")
+                .by_default("."sv)
                 .hint("path")
-            | clp_Flag(dry_run) ["--dry-run"]("Print the actions that the command would perform without making any change.")
+            | dodo_Flag(dry_run) ["--dry-run"]("Print the actions that the command would perform without making any change.")
         ) 
-        | clp::Command("open-window", "Open a test window.",
-            clp_Opt(int, width)["-w"]["--width"]("Width of the screen") |
-            clp_Opt(int, height)["-h"]["--height"]("Height of the screen")
+        | dodo::Command("open-window", "Open a test window.",
+            dodo_Opt(int, width)["-w"]["--width"]("Width of the screen") |
+            dodo_Opt(int, height)["-h"]["--height"]("Height of the screen")
         )
-        | clp::Command("fetch-url", "Fetch the given url and print the HTTP response.",
-            clp_Opt(std::string, url)["--url"]("Url to fetch") |
-            clp_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
-            clp_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").default_to(10.0f)
+        | dodo::Command("fetch-url", "Fetch the given url and print the HTTP response.",
+            dodo_Opt(std::string, url)["--url"]("Url to fetch") |
+            dodo_Opt(int, max_attempts)["--max-attempts"]("Maximum number of attempts before failing") |
+            dodo_Opt(float, timeout)["--timeout"]("Time to wait for response before failing the attempt").by_default(10.0f)
         );
 
     std::string const help_text = cli.to_string();
@@ -887,17 +887,17 @@ TEST_CASE("CommandsWithSharedOptions::to_string")
 TEST_CASE("CommandsWithImplicitCommand::to_string")
 {
     constexpr auto cli = tests::Help()
-        | clp_Opt(int, width)["-w"]["--width"]
+        | dodo_Opt(int, width)["-w"]["--width"]
             ("Width of the screen in pixels.")
-            .default_to(1920)
-        | clp_Opt(int, height)["-h"]["--height"]
+            .by_default(1920)
+        | dodo_Opt(int, height)["-h"]["--height"]
             ("Height of the screen in pixels.")
-            .default_to(1080)
-        | clp_Opt(bool, fullscreen)["--fullscreen"]
+            .by_default(1080)
+        | dodo_Opt(bool, fullscreen)["--fullscreen"]
             ("Whether to start the application in fullscreen or not.")
-            .default_to(false)
+            .by_default(false)
             .implicitly(true)
-        | clp_Opt(std::string, starting_level) ["--starting-level"]
+        | dodo_Opt(std::string, starting_level) ["--starting-level"]
             ("Level to open in the editor.")
             .hint("level-name");
 
@@ -923,7 +923,7 @@ TEST_CASE("CommandsWithImplicitCommand::to_string")
 
 TEST_CASE("Single positional argument cli")
 {
-    constexpr auto cli = clp_Arg(int, width, "width")("Width of the screen in pixels");
+    constexpr auto cli = dodo_Arg(int, width, "width")("Width of the screen in pixels");
 
     SECTION("Found")
     {
@@ -949,8 +949,8 @@ TEST_CASE("Single positional argument cli")
 TEST_CASE("Positional arguments must be provided in order")
 {
     constexpr auto cli =
-        clp_Arg(int, width, "width")("Width of the screen in pixels.")
-        | clp_Arg(std::string_view, username, "username")("Username to login with.");
+        dodo_Arg(int, width, "width")("Width of the screen in pixels.")
+        | dodo_Arg(std::string_view, username, "username")("Username to login with.");
 
     SECTION("In order")
     {
@@ -977,8 +977,8 @@ TEST_CASE("Positional arguments must be provided in order")
 TEST_CASE("A positional argument and a flag")
 {
     constexpr auto cli =
-        clp_Arg(int, width, "width")("Width of the screen in pixels.")
-        | clp_Flag(fullscreen)["--fullscreen"]("Whether to start the application in fullscreen or not.");
+        dodo_Arg(int, width, "width")("Width of the screen in pixels.")
+        | dodo_Flag(fullscreen)["--fullscreen"]("Whether to start the application in fullscreen or not.");
 
     SECTION("Only argument")
     {

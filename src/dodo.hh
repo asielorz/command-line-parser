@@ -5,7 +5,7 @@
 #include <concepts>
 #include <type_traits>
 
-namespace clp
+namespace dodo
 {
 
     template <typename From, typename To>
@@ -213,8 +213,9 @@ namespace clp
         {option.parse_impl(arg)} ->std::same_as<std::optional<typename T::parse_result_type>>;
     };
 
-    #define clp_Opt(type, var)
-    #define clp_Flag(var);
+    #define dodo_Opt(type, var)
+    #define dodo_Flag(var);
+    #define dodo_Arg(type, var, name);
 
     template <typename T, size_t N>
     struct constant_range
@@ -248,15 +249,15 @@ namespace clp
         }
 
         template <explicitly_convertible_to<typename Base::value_type> T>
-        constexpr OptionInterface<WithDefaultValue<Base, T>> default_to(T default_value) const noexcept requires(!HasDefaultValue<Base>)
+        constexpr OptionInterface<WithDefaultValue<Base, T>> by_default(T default_value) const noexcept requires(!HasDefaultValue<Base>)
         {
             return OptionInterface<WithDefaultValue<Base, T>>(WithDefaultValue<Base, T>(*this, std::move(default_value)));
         }
 
         template <typename ... Ts>
-        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(default_to(constant_range{default_values...}))
+        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{default_values...}))
         {
-            return this->default_to(constant_range{default_values...});
+            return this->by_default(constant_range{default_values...});
         }
 
         template <explicitly_convertible_to<typename Base::value_type> T>
@@ -327,15 +328,15 @@ namespace clp
         }
 
         template <explicitly_convertible_to<typename Base::value_type> T>
-        constexpr PositionalArgumentInterface<WithDefaultValue<Base, T>> default_to(T default_value) const noexcept requires(!HasDefaultValue<Base>)
+        constexpr PositionalArgumentInterface<WithDefaultValue<Base, T>> by_default(T default_value) const noexcept requires(!HasDefaultValue<Base>)
         {
             return PositionalArgumentInterface<WithDefaultValue<Base, T>>(WithDefaultValue<Base, T>(*this, std::move(default_value)));
         }
 
         template <typename ... Ts>
-        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(default_to(constant_range{ default_values... }))
+        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{ default_values... }))
         {
-            return this->default_to(constant_range{ default_values... });
+            return this->by_default(constant_range{ default_values... });
         }
 
         template <typename Predicate>
@@ -365,8 +366,8 @@ namespace clp
         using get_parse_result_type = typename T::parse_result_type;
     }
 
-    #define clp_parse_result_type(cli) clp::detail::get_parse_result_type<std::remove_cvref_t<decltype(cli)>>
-    #define clp_command_type(cli, i) std::variant_alternative_t<i, clp_parse_result_type(cli)>
+    #define dodo_parse_result_type(cli) dodo::detail::get_parse_result_type<std::remove_cvref_t<decltype(cli)>>
+    #define dodo_command_type(cli, i) std::variant_alternative_t<i, dodo_parse_result_type(cli)>
 
     template <SingleOption ... Options>
     struct CompoundOption : private Options...
@@ -585,6 +586,6 @@ namespace clp
     constexpr auto operator | (CommandWithImplicitCommand<Commands, CurrentImplicitCommand> commands, NewImplicitCommand new_implicit_command) noexcept
         -> CommandWithImplicitCommand<Commands, decltype(commands.implicit_command | new_implicit_command)>;
 
-} // namespace clp
+} // namespace dodo
 
-#include "clp.inl"
+#include "dodo.inl"

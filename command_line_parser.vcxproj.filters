@@ -26,15 +26,15 @@
     <ClInclude Include="src\catch2\catch.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\clp.hh">
+    <ClInclude Include="src\expected.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\expected.hh">
+    <ClInclude Include="src\dodo.hh">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\clp.inl">
+    <None Include="src\dodo.inl">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

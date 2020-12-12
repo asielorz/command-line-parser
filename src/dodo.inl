@@ -1,4 +1,4 @@
-namespace clp
+namespace dodo
 {
     namespace detail
     {
@@ -102,8 +102,8 @@ namespace clp
         return out;
     }
 
-    #undef clp_Opt
-    #define clp_Opt(type, var) clp::OptionInterface(clp::Option<std::remove_pointer_t<decltype([](){        \
+    #undef dodo_Opt
+    #define dodo_Opt(type, var) dodo::OptionInterface(dodo::Option<std::remove_pointer_t<decltype([](){     \
         struct OptionTypeImpl                                                                               \
         {                                                                                                   \
             using value_type = type;                                                                        \
@@ -113,8 +113,8 @@ namespace clp
         return static_cast<OptionTypeImpl *>(nullptr);                                                      \
     }())>>(#type))
 
-    #undef clp_Flag
-    #define clp_Flag(var) clp_Opt(bool, var).default_to(false).implicitly(true)
+    #undef dodo_Flag
+    #define dodo_Flag(var) dodo_Opt(bool, var).by_default(false).implicitly(true)
 
     //*****************************************************************************************************************************************************
     // PositionalArgumentInterface
@@ -185,8 +185,8 @@ namespace clp
         return out;
     }
 
-    #undef clp_Arg
-    #define clp_Arg(type, var, name) clp::PositionalArgumentInterface(clp::PositionalArgument<std::remove_pointer_t<decltype([](){      \
+    #undef dodo_Arg
+    #define dodo_Arg(type, var, name) dodo::PositionalArgumentInterface(dodo::PositionalArgument<std::remove_pointer_t<decltype([](){   \
         struct OptionTypeImpl                                                                                                           \
         {                                                                                                                               \
             using value_type = type;                                                                                                    \
@@ -463,7 +463,7 @@ namespace clp
             else
             {
                 if constexpr (sizeof...(Rest) > 0)
-                    return clp::detail::parse_impl<Rest...>(commands, argc, argv);
+                    return dodo::detail::parse_impl<Rest...>(commands, argc, argv);
                 else
                     return detail::make_error("Unrecognized command \"", argv[0], '"');
             }
@@ -476,7 +476,7 @@ namespace clp
         if (argc <= 0)
             return detail::make_error("Expected command.");
 
-        return clp::detail::parse_impl<Commands...>(*this, argc, argv);
+        return dodo::detail::parse_impl<Commands...>(*this, argc, argv);
     }
 
     template <CommandType ... Commands>
@@ -637,12 +637,12 @@ namespace clp
             (commands.commands, commands.implicit_command | new_implicit_command);
     }
 
-} // namespace clp
+} // namespace dodo
 
 template <typename T, size_t N>
-struct parse_traits<clp::constant_range<T, N>>
+struct parse_traits<dodo::constant_range<T, N>>
 {
-    static std::string to_string(clp::constant_range<T, N> const & r)
+    static std::string to_string(dodo::constant_range<T, N> const & r)
     {
         std::string result;
 

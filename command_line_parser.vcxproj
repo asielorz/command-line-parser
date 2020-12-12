@@ -163,12 +163,12 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\catch2\catch.hpp" />
-    <ClInclude Include="src\clp.hh" />
+    <ClInclude Include="src\dodo.hh" />
     <ClInclude Include="src\expected.hh" />
     <ClInclude Include="src\parse_traits.hh" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="src\clp.inl" />
+    <None Include="src\dodo.inl" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

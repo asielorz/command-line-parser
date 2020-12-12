@@ -3,7 +3,7 @@
 #include <optional>
 #include <variant>
 
-namespace clp
+namespace dodo
 {
 
 	template <typename T>
