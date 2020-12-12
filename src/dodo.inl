@@ -38,7 +38,7 @@ namespace dodo
             std::optional<std::string_view> const validation_error_message = this->validate(*parse_result);
             if (validation_error_message)
                 return detail::make_error(
-                    "Validation check failed for option ", this->patterns_to_string(), "with argument \"", matched_arg, "\":\n\t", 
+                    "Validation check failed for option ", this->patterns_to_string(), "with argument \"", matched_arg, "\":\n\t",
                     *validation_error_message);
         }
 
@@ -87,7 +87,7 @@ namespace dodo
             out += '\n';
             for (int i = 0; i < column_width; ++i) out.push_back(' ');
             out += "By default: ";
-            out += ::to_string(this->default_value);
+            out += dodo::to_string(this->default_value);
         }
 
         if constexpr (HasImplicitValue<Base>)
@@ -95,7 +95,7 @@ namespace dodo
             out += '\n';
             for (int i = 0; i < column_width; ++i) out.push_back(' ');
             out += "Implicitly: ";
-            out += ::to_string(this->implicit_value);
+            out += dodo::to_string(this->implicit_value);
         }
 
         out += '\n';
@@ -254,7 +254,7 @@ namespace dodo
         if (!(*std::get<option_parse_result<Options>>(option_parse_results) && ...))
             return detail::make_error("Option failed to parse");
 
-        return parse_result_type{std::move(**std::get<option_parse_result<Options>>(option_parse_results))...};
+        return parse_result_type{ std::move(**std::get<option_parse_result<Options>>(option_parse_results))... };
     }
 
     template <SingleOption ... Options>
@@ -309,7 +309,7 @@ namespace dodo
         if (!(std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results) && ...))
             return detail::make_error("Argument failed to parse");
 
-        return parse_result_type{std::move(*std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results))...};
+        return parse_result_type{ std::move(*std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results))... };
     }
 
     template <SingleArgument ... Arguments>
@@ -361,7 +361,7 @@ namespace dodo
         if (!opts)
             return Error(std::move(opts.error()));
 
-        return parse_result_type{std::move(*args), std::move(*opts)};
+        return parse_result_type{ std::move(*args), std::move(*opts) };
     }
 
     template <instantiation_of<CompoundArgument> Arguments, instantiation_of<CompoundOption> Options>
@@ -439,7 +439,7 @@ namespace dodo
         return CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>(
             a.access_arguments() | b.access_arguments(),
             a.access_options() | b.access_options()
-        );
+            );
     }
 
     //*****************************************************************************************************************************************************
@@ -487,7 +487,7 @@ namespace dodo
 
     template <Parser P>
     constexpr auto Command<P>::parse_command(int argc, char const * const argv[]) const noexcept
-    { 
+    {
         return parser.parse(argc - 1, argv + 1);
     }
 
@@ -532,7 +532,7 @@ namespace dodo
     }
 
     template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
-    auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept 
+    auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept
         -> expected<parse_result_type, std::string>
     {
         auto const it = std::find_if(argv, argv + argc, [this](char const * arg) { return commands.match(arg); });
@@ -551,7 +551,7 @@ namespace dodo
         if (!command)
             return Error(std::move(command.error()));
 
-        return parse_result_type{std::move(*shared_arguments), std::move(*command)};
+        return parse_result_type{ std::move(*shared_arguments), std::move(*command) };
     }
 
     template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
@@ -582,7 +582,7 @@ namespace dodo
     }
 
     template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
-    auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept 
+    auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept
         -> expected<parse_result_type, std::string>
     {
         if (commands.match(argv[0]))
@@ -637,25 +637,25 @@ namespace dodo
             (commands.commands, commands.implicit_command | new_implicit_command);
     }
 
-} // namespace dodo
-
-template <typename T, size_t N>
-struct parse_traits<dodo::constant_range<T, N>>
-{
-    static std::string to_string(dodo::constant_range<T, N> const & r)
+    template <typename T, size_t N>
+    struct parse_traits<dodo::constant_range<T, N>>
     {
-        std::string result;
-
-        for (T const & t : r.array)
+        static std::string to_string(dodo::constant_range<T, N> const & r)
         {
-            result += parse_traits<T>::to_string(t);
-            result += ' ';
+            std::string result;
+
+            for (T const & t : r.array)
+            {
+                result += parse_traits<T>::to_string(t);
+                result += ' ';
+            }
+
+            // Remove last space.
+            if (!result.empty())
+                result.pop_back();
+
+            return result;
         }
+    };
 
-        // Remove last space.
-        if (!result.empty())
-            result.pop_back();
-
-        return result;
-    }
-};
+} // namespace dodo

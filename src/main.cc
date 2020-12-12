@@ -665,7 +665,7 @@ TEST_CASE("Option of vector type")
 {
     constexpr auto cli = dodo_Opt(std::vector<int>, values) ["--values"]
             ("Some test integers.")
-            .default_to_range(1, 2, 3)
+            .by_default_range(1, 2, 3)
             .implicitly_range(0, 5, 4, 5);
 
     SECTION("Parse correctly")
@@ -695,7 +695,7 @@ TEST_CASE("Printing parsers of vectors")
 {
     constexpr auto cli = dodo_Opt(std::vector<int>, values) ["--values"]
             ("Some test integers.")
-            .default_to_range(1, 2, 3)
+            .by_default_range(1, 2, 3)
             .implicitly_range(0, 5, 4, 5);
 
     std::string const str = cli.to_string();

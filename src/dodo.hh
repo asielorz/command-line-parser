@@ -255,7 +255,7 @@ namespace dodo
         }
 
         template <typename ... Ts>
-        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{default_values...}))
+        constexpr auto by_default_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{default_values...}))
         {
             return this->by_default(constant_range{default_values...});
         }
@@ -334,7 +334,7 @@ namespace dodo
         }
 
         template <typename ... Ts>
-        constexpr auto default_to_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{ default_values... }))
+        constexpr auto by_default_range(Ts ... default_values) const noexcept -> decltype(by_default(constant_range{ default_values... }))
         {
             return this->by_default(constant_range{ default_values... });
         }
