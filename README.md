@@ -32,6 +32,12 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Command parsers, defined as a variant of the arguments taken by the parser of each of the commands.
 
+## Unsupported features that are common in command line parsing libraries
+
+- Grouping of short arguments. E.g. having `-rf` mean the same as `-r -f`
+
+- Option name and value in different arguments. E.g. having `--path C://Users/foo/Desktop/` mean the same as `--path=C://Users/foo/Desktop/`
+
 ## Using
 
 Dodo is a single header library. To use the library, just `#include "dodo.hh"`
