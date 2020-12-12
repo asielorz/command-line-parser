@@ -97,7 +97,6 @@ constexpr auto cli
 	| dodo_Arg(int, height, "height")
 		("Height of the window in pixels.")
 	| dodo_Arg(std::string, username, "username")
-		["-n"]["--name"]
 		("Username used to log in to the server.");
 ```
 
@@ -107,6 +106,7 @@ The parser above would succesfully parse the command line `1920 1980 foobar`, ho
 
 By default, if a named argument is not provided by the user, the function will fail to parse. However, it is possible to provide a default value to an option. If one is provided and the user does not input an option, parsing will succeed and the option will take the default value. A default value is added to an option through the `by_default` method.
 
+```cpp
 constexpr auto cli
 	= dodo_Opt(int, width)
 		["-w"]["--width"]
@@ -130,13 +130,26 @@ It is important to notice that the default value does not need to be of the exac
 
 ### Implicit value and flags
 
+It is very common for boolean named options to be false by default, and to just name them to make them true. The user would expect `--fullscreen` to mean `--fullscreen=true` without having to type the longer version. For this, dodo allows defining an implicit value to a named option, which is the value the option will take when being named without having a value explicitly assigned as explained above. So, for the desired behavior, we would define the fullscreen option as:
 
+```cpp
+constexpr auto cli
+	= dodo_Opt(bool, fullscreen)
+		["--fullscreen"]
+		("Start the application in fullscreen mode.")
+		.by_default(false)
+		.implicitly(true);
+```
 
+For the extremely common case of booleans that default to false and are implicitly true, dodo also provides the `dodo_Flag` macro to shorten.
 
-
-
-
-
+```cpp
+// Equivalent to the above
+constexpr auto cli
+	= dodo_Flag(fullscreen)
+		["--fullscreen"]
+		("Start the application in fullscreen mode.");
+```
 
 
 
