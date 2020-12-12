@@ -40,6 +40,10 @@ E.g. having `-rf` mean the same as `-r -f`
 - Option name and value in different arguments.  
 E.g. having `--path C://Users/foo/Desktop/` mean the same as `--path=C://Users/foo/Desktop/`
 
+- Mixing positional arguments and named options. All positional arguments must go before all named options.  
+Correct: `program.exe foo bar --opt1=6 --opt2=8`  
+Wrong: `program.exe foo --opt1=6 bar --opt2=8`
+
 ## Using
 
 Dodo is a single header library. To use the library, just `#include "dodo.hh"`
