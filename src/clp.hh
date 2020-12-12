@@ -1,9 +1,9 @@
 #pragma once
 
 #include "parse_traits.hh"
+#include "expected.hh"
 #include <concepts>
 #include <type_traits>
-#include <variant>
 
 namespace clp
 {
@@ -39,7 +39,7 @@ namespace clp
 
     template <typename T>
     concept HasValidationCheck = requires(T option, typename T::parse_result_type parse_result) {
-        {option.validate(parse_result)} -> std::same_as<bool>;
+        {option.validate(parse_result)} -> std::same_as<std::optional<std::string_view>>;
     };
 
     template <typename Base, typename Predicate>
@@ -47,13 +47,19 @@ namespace clp
     {
         constexpr explicit WithCheck(Base base, Predicate predicate_, std::string_view error_message_) : Base(base), validation_predicate(predicate_), error_message(error_message_) {}
 
-        constexpr bool validate(typename Base::parse_result_type t) const noexcept
+        constexpr std::optional<std::string_view> validate(typename Base::parse_result_type t) const noexcept
         {
             if constexpr (HasValidationCheck<Base>)
-                if (!Base::validate(t))
-                    return false;
+            {
+                auto const base_check_error_message = Base::validate(t);
+                if (base_check_error_message)
+                    return base_check_error_message;
+            }
 
-            return validation_predicate(t._get());
+            if (validation_predicate(t._get()))
+                return std::nullopt;
+            else
+                return error_message;
         }
 
     private:
@@ -198,7 +204,6 @@ namespace clp
 
         constexpr std::string_view hint_text() const noexcept { return type_name; }
 
-    private:
         std::string_view type_name;
     };
 
@@ -228,8 +233,8 @@ namespace clp
     {
         explicit constexpr OptionInterface(Base base) noexcept : Base(base) {}
 
-        constexpr auto parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>;
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
+        auto parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const requires HasDescription<Base>;
 
         constexpr OptionInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
@@ -304,8 +309,6 @@ namespace clp
         constexpr std::string_view hint_text() const noexcept { return type_name; }
 
         std::string_view name;
-
-    private:
         std::string_view type_name;
     };
 
@@ -314,8 +317,8 @@ namespace clp
     {
         explicit constexpr PositionalArgumentInterface(Base base) noexcept : Base(base) {}
 
-        constexpr auto parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>;
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>;
+        auto parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const requires HasDescription<Base>;
 
         constexpr PositionalArgumentInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
@@ -372,7 +375,7 @@ namespace clp
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         template <SingleOption T>
@@ -394,7 +397,7 @@ namespace clp
 
         struct parse_result_type : public detail::get_parse_result_type<Arguments>... {};
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         template <SingleArgument T>
@@ -416,7 +419,7 @@ namespace clp
 
         struct parse_result_type : public detail::get_parse_result_type<Arguments>, public detail::get_parse_result_type<Options> {};
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         constexpr Options const & access_options() const noexcept
@@ -463,7 +466,9 @@ namespace clp
         -> CompoundParser<CompoundArgument<ArgsA..., ArgsB...>, CompoundOption<OptsA..., OptsB...>>;
 
     template <typename T>
-    concept Parser = requires(T const parser, int argc, char const * const * argv) { {parser.parse(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>; };
+    concept Parser = requires(T const parser, int argc, char const * const * argv) { 
+        {parser.parse(argc, argv)} -> std::same_as<expected<typename T::parse_result_type, std::string>>; 
+    };
 
     template <Parser P>
     struct Command
@@ -489,7 +494,7 @@ namespace clp
     concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv, int indentation) 
     {
         {t.match(text)} -> std::same_as<bool>;
-        {t.parse_command(argc, argv)} -> std::same_as<std::optional<typename T::parse_result_type>>;
+        {t.parse_command(argc, argv)} -> std::same_as<expected<typename T::parse_result_type, std::string>>;
         {t.to_string(indentation)} -> std::same_as<std::string>;
     };
 
@@ -500,7 +505,7 @@ namespace clp
 
         constexpr explicit CommandSelector(Commands... commands) noexcept : Commands(commands)... {}
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
 
         constexpr bool match(std::string_view text) const noexcept { return (access_command<Commands>().match(text) || ...); }
 
@@ -532,7 +537,7 @@ namespace clp
             typename Commands::parse_result_type command;
         };
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const noexcept;
 
         SharedOptions shared_options;
@@ -563,7 +568,7 @@ namespace clp
 
         using parse_result_type = either<typename Commands::parse_result_type, typename ImplicitCommand::parse_result_type>;
 
-        constexpr auto parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>;
+        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const noexcept;
 
         Commands commands;

@@ -8,63 +8,64 @@ namespace clp
             using ValueType = typename ParseResultType::value_type;
             return ParseResultType{ ValueType(t) };
         }
+
+        template <typename ... Args>
+        Error<std::string> make_error(Args const & ... args)
+        {
+            std::string result;
+            ((result += args), ...);
+            return result;
+        }
+
     } // namespace detail
 
     //*****************************************************************************************************************************************************
     // OptionInterface
 
     template <typename Base>
-    constexpr auto OptionInterface<Base>::parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>
+    auto OptionInterface<Base>::parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
         if constexpr (HasImplicitValue<Base>)
             if (matched_arg.empty())
                 return detail::make_parse_result<typename Base::parse_result_type>(this->implicit_value);
 
         auto parse_result = this->parse_impl(matched_arg);
+        if (!parse_result)
+            return detail::make_error("Could not convert argument \"", matched_arg, "\" to type ", this->type_name);
 
         if constexpr (HasValidationCheck<Base>)
-            if (parse_result && !this->validate(*parse_result))
-                return std::nullopt;
+        {
+            std::optional<std::string_view> const validation_error_message = this->validate(*parse_result);
+            if (validation_error_message)
+                return detail::make_error(
+                    "Validation check failed for option ", this->patterns_to_string(), "with argument \"", matched_arg, "\":\n\t", 
+                    *validation_error_message);
+        }
 
-        return parse_result;
+        return std::move(*parse_result);
     }
 
     template <typename Base>
-    constexpr auto OptionInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>
+    auto OptionInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
         if (argc == 0)
         {
             if constexpr (HasDefaultValue<Base>)
                 return detail::make_parse_result<typename Base::parse_result_type>(this->default_value);
             else
-                return std::nullopt;
+                return detail::make_error("No matching argument for option ", this->patterns_to_string());
         }
         else if (argc == 1)
         {
             std::optional<std::string_view> const matched = this->match(argv[0]);
             if (matched)
-            {
-                if constexpr (HasImplicitValue<Base>)
-                    if (matched->empty())
-                        return detail::make_parse_result<typename Base::parse_result_type>(this->implicit_value);
-
-                auto parse_result = this->parse_impl(*matched);
-
-                if constexpr (HasValidationCheck<Base>)
-                    if (parse_result && !this->validate(*parse_result))
-                        return std::nullopt;
-
-                return parse_result;
-            }
-            else
-            {
-                return std::nullopt;
-            }
+                return this->parse(*matched);
         }
-        else
-        {
-            return std::nullopt;
-        }
+
+        return detail::make_error(
+            "No matching argument for option ", this->patterns_to_string(), "\n"
+            "Unrecognized parameter \"", argv[0], '"'
+        );
     }
 
     template <typename Base>
@@ -119,26 +120,33 @@ namespace clp
     // PositionalArgumentInterface
 
     template <typename Base>
-    constexpr auto PositionalArgumentInterface<Base>::parse(std::string_view matched_arg) const noexcept -> std::optional<typename Base::parse_result_type>
+    auto PositionalArgumentInterface<Base>::parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
         auto parse_result = this->parse_impl(matched_arg);
+        if (!parse_result)
+            return detail::make_error("Could not convert argument \"", matched_arg, "\" to type ", this->type_name);
 
         if constexpr (HasValidationCheck<Base>)
-            if (parse_result && !this->validate(*parse_result))
-                return std::nullopt;
+        {
+            std::optional<std::string_view> const validation_error_message = this->validate(*parse_result);
+            if (validation_error_message)
+                return detail::make_error(
+                    "Validation check failed for argument ", this->name, "with argument \"", matched_arg, "\":\n\t",
+                    *validation_error_message);
+        }
 
-        return parse_result;
+        return std::move(*parse_result);
     }
 
     template <typename Base>
-    constexpr auto PositionalArgumentInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<typename Base::parse_result_type>
+    auto PositionalArgumentInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
         if (argc == 0)
         {
             if constexpr (HasDefaultValue<Base>)
                 return detail::make_parse_result<typename Base::parse_result_type>(this->default_value);
             else
-                return std::nullopt;
+                return detail::make_error("Missing argument ", this->name);
         }
         else if (argc == 1)
         {
@@ -146,7 +154,7 @@ namespace clp
         }
         else
         {
-            return std::nullopt;
+            return detail::make_error("Too many arguments.");
         }
     }
 
@@ -192,10 +200,10 @@ namespace clp
     // CompoundOption
 
     template <SingleOption Option>
-    using option_parse_result = std::optional<std::optional<typename Option::parse_result_type>>;
+    using option_parse_result = std::optional<expected<typename Option::parse_result_type, std::string>>;
 
     template <SingleOption Option>
-    constexpr bool try_parse_argument(Option const & parser, std::string_view arg, option_parse_result<Option> & result)
+    bool try_parse_argument(Option const & parser, std::string_view arg, option_parse_result<Option> & result)
     {
         if (!result)
         {
@@ -212,15 +220,15 @@ namespace clp
     }
 
     template <SingleOption Option>
-    constexpr void complete_with_default_value([[maybe_unused]] Option const & parser, [[maybe_unused]] option_parse_result<Option> & result)
+    void complete_with_default_value([[maybe_unused]] Option const & parser, [[maybe_unused]] option_parse_result<Option> & result)
     {
         if constexpr (HasDefaultValue<Option>)
             if (!result)
-                result.emplace(detail::make_parse_result<typename Option::parse_result_type>(parser.default_value));
+                result = option_parse_result<Option>(detail::make_parse_result<typename Option::parse_result_type>(parser.default_value));
     }
 
     template <SingleOption ... Options>
-    constexpr auto CompoundOption<Options...>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CompoundOption<Options...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
     {
         std::tuple<option_parse_result<Options>...> option_parse_results;
 
@@ -233,18 +241,18 @@ namespace clp
             ) || ...);
 
             if (!argument_parsed)
-                return std::nullopt;
+                return detail::make_error("Unrecognized argument \"", argv[i], '"');
         }
 
         (complete_with_default_value(access_option<Options>(), std::get<option_parse_result<Options>>(option_parse_results)), ...);
 
         // Check that all options were matched.
         if (!(std::get<option_parse_result<Options>>(option_parse_results) && ...))
-            return std::nullopt;
+            return detail::make_error("Unmatched option");
 
         // Check that no option failed to parse.
         if (!(*std::get<option_parse_result<Options>>(option_parse_results) && ...))
-            return std::nullopt;
+            return detail::make_error("Option failed to parse");
 
         return parse_result_type{std::move(**std::get<option_parse_result<Options>>(option_parse_results))...};
     }
@@ -285,10 +293,10 @@ namespace clp
     // CompoundArgument
 
     template <SingleArgument ... Arguments>
-    constexpr auto CompoundArgument<Arguments...>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CompoundArgument<Arguments...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
     {
         if (argc > sizeof...(Arguments))
-            return std::nullopt;
+            return detail::make_error("Too many arguments. Provided", std::to_string(argc), "arguments. Program expects ", std::to_string(sizeof...(Arguments)));
 
         auto const results = [this, argc, argv]<size_t ... Is>(std::index_sequence<Is...>)
         {
@@ -298,10 +306,10 @@ namespace clp
         }(std::make_index_sequence<sizeof...(Arguments)>());
 
         // Ensure that all arguments were parsed.
-        if (!(std::get<std::optional<detail::get_parse_result_type<Arguments>>>(results) && ...))
-            return std::nullopt;
+        if (!(std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results) && ...))
+            return detail::make_error("Argument failed to parse");
 
-        return parse_result_type{std::move(*std::get<std::optional<detail::get_parse_result_type<Arguments>>>(results))...};
+        return parse_result_type{std::move(*std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results))...};
     }
 
     template <SingleArgument ... Arguments>
@@ -340,16 +348,18 @@ namespace clp
     // CompoundParser
 
     template <instantiation_of<CompoundArgument> Arguments, instantiation_of<CompoundOption> Options>
-    constexpr auto CompoundParser<Arguments, Options>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CompoundParser<Arguments, Options>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
     {
         auto const first_option = std::find_if(argv, argv + argc, [](char const arg[]) { return arg[0] == '-'; });
         int const positional_arg_count = int(first_option - argv);
 
         auto args = Arguments::parse(positional_arg_count, argv);
-        auto opts = Options::parse(argc - positional_arg_count, first_option);
+        if (!args)
+            return Error(std::move(args.error()));
 
-        if (!args || !opts)
-            return std::nullopt;
+        auto opts = Options::parse(argc - positional_arg_count, first_option);
+        if (!opts)
+            return Error(std::move(opts.error()));
 
         return parse_result_type{std::move(*args), std::move(*opts)};
     }
@@ -439,14 +449,14 @@ namespace clp
     {
         template <CommandType Next, CommandType ... Rest, CommandType ... Commands>
         constexpr auto parse_impl(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
-            -> std::optional<typename CommandSelector<Commands...>::parse_result_type>
+            -> expected<typename CommandSelector<Commands...>::parse_result_type, std::string>
         {
             Next const & next = commands.access_command<Next>();
             if (next.match(argv[0]))
             {
                 auto result = next.parse_command(argc, argv);
                 if (!result)
-                    return std::nullopt;
+                    return Error(std::move(result.error()));
                 else
                     return std::move(*result);
             }
@@ -455,16 +465,16 @@ namespace clp
                 if constexpr (sizeof...(Rest) > 0)
                     return clp::detail::parse_impl<Rest...>(commands, argc, argv);
                 else
-                    return std::nullopt;
+                    return detail::make_error("Unrecognized command \"", argv[0], '"');
             }
         }
     }
 
     template <CommandType ... Commands>
-    constexpr auto CommandSelector<Commands...>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CommandSelector<Commands...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
     {
         if (argc <= 0)
-            return std::nullopt;
+            return detail::make_error("Expected command.");
 
         return clp::detail::parse_impl<Commands...>(*this, argc, argv);
     }
@@ -522,23 +532,24 @@ namespace clp
     }
 
     template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
-    constexpr auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept 
+        -> expected<parse_result_type, std::string>
     {
         auto const it = std::find_if(argv, argv + argc, [this](char const * arg) { return commands.match(arg); });
 
         // Command not found.
         if (it == argv + argc)
-            return std::nullopt;
+            return detail::make_error("Expected command.");
 
         int const arguments_until_command = int(it - argv);
 
         auto shared_arguments = shared_options.parse(arguments_until_command, argv);
         if (!shared_arguments)
-            return std::nullopt;
+            return Error(std::move(shared_arguments.error()));
 
         auto command = commands.parse(argc - arguments_until_command, it);
         if (!command)
-            return std::nullopt;
+            return Error(std::move(command.error()));
 
         return parse_result_type{std::move(*shared_arguments), std::move(*command)};
     }
@@ -571,18 +582,25 @@ namespace clp
     }
 
     template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
-    constexpr auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept -> std::optional<parse_result_type>
+    auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept 
+        -> expected<parse_result_type, std::string>
     {
         if (commands.match(argv[0]))
         {
             auto parsed_command = commands.parse(argc, argv);
             if (!parsed_command)
-                return std::nullopt;
+                return Error(std::move(parsed_command.error()));
             else
                 return std::visit([](auto && x) { return parse_result_type(std::move(x)); }, std::move(*parsed_command));
         }
         else
-            return implicit_command.parse(argc, argv);
+        {
+            auto parsed_implicit_command = implicit_command.parse(argc, argv);
+            if (!parsed_implicit_command)
+                return Error(std::move(parsed_implicit_command.error()));
+            else
+                return std::move(*parsed_implicit_command);
+        }
     }
 
     template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>

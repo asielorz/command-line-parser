@@ -29,7 +29,7 @@ namespace tests
         using parse_result_type = ShowHelp;
 
         constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
-        constexpr std::optional<ShowHelp> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        clp::expected<ShowHelp, std::string> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
         std::string to_string(int indentation) const noexcept
         {
             std::string result;
@@ -574,17 +574,6 @@ TEST_CASE("A custom parser may be given to an option")
     }
 }
 
-TEST_CASE("parse may be called at compile time")
-{
-    constexpr auto cli = clp_Flag(some_flag)["--flag"]("Example flag.")
-        | clp_Opt(std::string_view, some_string)["--str"]("Some text");
-
-    constexpr auto options = tests::parse(cli, {"--flag", "--str=foo"});
-    STATIC_REQUIRE(options.has_value());
-    STATIC_REQUIRE(options->some_flag == true);
-    STATIC_REQUIRE(options->some_string == "foo");
-}
-
 TEST_CASE("A custom hint may be given to a variable when the type name may not be readable enough.")
 {
     constexpr auto cli = clp_Opt(int, width)["-w"]["--width"]
@@ -895,7 +884,7 @@ TEST_CASE("CommandsWithSharedOptions::to_string")
     REQUIRE(help_text == expected);
 }
 
-TEST_CASE("CommandsWithImplicitCommand")
+TEST_CASE("CommandsWithImplicitCommand::to_string")
 {
     constexpr auto cli = tests::Help()
         | clp_Opt(int, width)["-w"]["--width"]
@@ -1020,9 +1009,3 @@ TEST_CASE("A positional argument and a flag")
         REQUIRE(!options.has_value());
     }
 }
-
-// Tasks
-// - Refactor parse to make it return either a parse result or an error
-//     - Decide whether to use variant or expected. (Maybe expected from aeh?)
-//     - Decide whether error is a structure (convertible to string) or a string directly.
-//     - Maybe go with string first for simplicity and decide whether to change it to a structure in the future.
