@@ -22,6 +22,8 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Define structures that will hold the parsed arguments implicitly from the parser.
 
+- No intermediate maps of strings. No possible type errors on the user side. The data ends directly in variables of the correct type that are accessed statically.
+
 - Typed arguments. Customization of conversion to and from string through traits and custom parsers.
 
 - `dodo::expected<value, error>` type for error propagation.
@@ -293,7 +295,7 @@ An option of a vector type takes a string with space separated list of arguments
 
 ```cpp
 enum struct Platform { windows, linux, server, ps4, xboxone, nintendo_switch };
-// Assuming dodo::parse_traits<Platform> exist and does the obvious thing.
+// Assuming dodo::parse_traits<Platform> exist and do the obvious thing.
 
 constexpr auto cli
 	= dodo_Opt(std::vector<Platform>, platforms)
@@ -414,6 +416,11 @@ constexpr auto cli
 		.by_default(10.0f);
 	
 auto const args = cli.parse(dodo::Args(argc, argv));
+if (!result)
+{
+	std::cerr << result.error() << '\n';
+	exit(1);
+}
 
 std::visit(dodo::overload
 (
