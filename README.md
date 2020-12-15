@@ -91,9 +91,9 @@ In this case the structure returned by parse will contain the members `width`, `
 
 ```cpp
 auto const args = cli.parse(dodo::Args(argc, argv));
-if (!result)
+if (!args)
 {
-	std::cerr << result.error() << '\n';
+	std::cerr << args.error() << '\n';
 	exit(1);
 }
 auto const window_handle = open_window(args->width, args->height, args->fullscreen);
@@ -335,9 +335,9 @@ In order to access the results, the best option is to visit the variant. `dodo::
 
 ```cpp
 auto const args = cli.parse(dodo::Args(argc, argv));
-if (!result)
+if (!args)
 {
-	std::cerr << result.error() << '\n';
+	std::cerr << args.error() << '\n';
 	exit(1);
 }
 
@@ -384,6 +384,11 @@ constexpr auto cli =
 	);
 	
 auto const args = cli.parse(dodo::Args(argc, argv));
+if (!args)
+{
+	std::cerr << args.error() << '\n';
+	exit(1);
+}
 
 if (args->shared_options.dry_run)
 {
@@ -416,9 +421,9 @@ constexpr auto cli
 		.by_default(10.0f);
 	
 auto const args = cli.parse(dodo::Args(argc, argv));
-if (!result)
+if (!args)
 {
-	std::cerr << result.error() << '\n';
+	std::cerr << args.error() << '\n';
 	exit(1);
 }
 
