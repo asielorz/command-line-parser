@@ -2,7 +2,11 @@
 
 ![Dodo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/De_Alice%27s_Abenteuer_im_Wunderland_Carroll_pic_10.jpg/800px-De_Alice%27s_Abenteuer_im_Wunderland_Carroll_pic_10.jpg)
 
-Dodo is a C++20 command line parsing library, with support for positional arguments, named options and git style commands. The library allows for declaratively expressing a command line parser function. This is a function that maps (argc, argv) to an anonymous structure declared by the library based on the parser function declaration that contains the variables read from the command line. It supports optional arguments with default values, conditions to check if an option has a correct value, customization points for parsing user defined types, and declaring subparsers for commands like git does (git commit, git push...). The name just follows the trend of giving animal names to software projects.
+Dodo is a C++20 command line parsing library, with support for positional arguments, named options and git style commands. The library allows for declaratively expressing a command line parser function. This is a function that maps (argc, argv) to an anonymous structure declared by the library based on the parser function declaration that contains the variables read from the command line. It supports optional arguments with default values, conditions to check if an option has a correct value, customization points for parsing user defined types, and declaring subparsers for commands like git does (git commit, git push...).
+
+The name just follows the trend of giving animal names to software projects.
+
+The design is heavily inspired by the library [Clara](https://github.com/catchorg/Clara) by Phil Nash, with modifications of my own to make it more functional.
 
 ## Compliance
 
@@ -22,7 +26,7 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Define structures that will hold the parsed arguments implicitly from the parser.
 
-- No intermediate maps of strings. No possible type errors on the user side. The data ends directly in variables of the correct type that are accessed statically.
+- No intermediate maps of strings. No possible type errors or string typos at runtime on the user side. The data ends directly in variables of the correct type that are accessed statically.
 
 - Typed arguments. Customization of conversion to and from string through traits and custom parsers.
 
