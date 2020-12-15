@@ -451,3 +451,17 @@ std::visit(some_visitor, args->command);
 ```
 
 `dodo::noop_parser` is an empty parser that always succeeds and returns an empty struct. The tag type given as template parameter allows several noop parsers to have different types as result type in order to have several of them in a variant.
+
+### Parsing a command line string
+
+It is possible to construct a dodo::Args object from a single string of space separated arguments. This is useful for people implementing their own editors where the user can type a command in order to invoke it. For example, Unreal Engine has a terminal that can be opened with the `~` key, where the user can type a command to have the engine execute it. This way, the user can use dodo not only for the arguments that are input to main, but also for any command inputed in string form. It supports Linux style scaping with backslash `\`, 'single quotes' and "double quoted".
+
+There are two versions of the function, `dodo::Args::from_command_line` and `dodo::Args::from_command_line_skip_program_name`. The second will skip the first argument.
+
+```cpp
+dodo::Args const args = dodo::Args::from_command_line("some-command foo bar 'En un lugar de la Mancha' --some-value=25");
+// args = {"some-command", "foo", "bar", "En un lugar de la Mancha", "--some-value=25"};
+
+dodo::Args const args2 = dodo::Args::from_command_line_skip_program_name("some-command foo bar 'En un lugar de la Mancha' --some-value=25");
+// args = {"foo", "bar", "En un lugar de la Mancha", "--some-value=25"};
+```
