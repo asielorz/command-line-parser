@@ -56,10 +56,10 @@ namespace dodo
         static Args from_argc_argv_skip_program_name(int argc, char const * const argv[]) noexcept { return Args(argc, argv); }
     };
 
-    struct ArgsView : public std::span<std::string_view>
+    struct ArgsView : public std::span<std::string_view const>
     {
-        ArgsView(Args const & args) noexcept : std::span<std::string_view>(args.begin(), args.end()) {}
-        constexpr ArgsView(std::span<std::string_view> args) noexcept : std::span<std::string_view>(args) {}
+        ArgsView(Args const & args) noexcept : std::span<std::string_view const>(args.begin(), args.end()) {}
+        constexpr ArgsView(std::span<std::string_view const> args) noexcept : std::span<std::string_view const>(args) {}
     };
 
     template <typename T>
@@ -401,7 +401,7 @@ namespace dodo
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
-        auto parse(ArgsView args]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         template <SingleOption T>

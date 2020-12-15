@@ -232,16 +232,16 @@ namespace dodo
     {
         std::tuple<option_parse_result<Options>...> option_parse_results;
 
-        for (int i = 0; i < argc; ++i)
+        for (std::string_view const arg : args)
         {
             bool const argument_parsed = (try_parse_argument(
                 access_option<Options>(),
-                args[i],
+                arg,
                 std::get<option_parse_result<Options>>(option_parse_results)
             ) || ...);
 
             if (!argument_parsed)
-                return detail::make_error("Unrecognized argument \"", args[i], '"');
+                return detail::make_error("Unrecognized argument \"", arg, '"');
         }
 
         (complete_with_default_value(access_option<Options>(), std::get<option_parse_result<Options>>(option_parse_results)), ...);
@@ -254,7 +254,7 @@ namespace dodo
         if (!(*std::get<option_parse_result<Options>>(option_parse_results) && ...))
             return detail::make_error("Option failed to parse");
 
-        return parse_result_type{ std::move(**std::get<option_parse_result<Options>>(option_parse_results))... };
+        return parse_result_type{std::move(**std::get<option_parse_result<Options>>(option_parse_results))...};
     }
 
     template <SingleOption ... Options>
@@ -301,7 +301,7 @@ namespace dodo
         auto const results = [this, args]<size_t ... Is>(std::index_sequence<Is...>)
         {
             using Tup = std::tuple<Arguments...>;
-            return std::make_tuple(this->template access_argument<std::tuple_element_t<Is, Tup>>().parse(Is >= args.size() ? 0 : 1, argv + Is)...);
+            return std::make_tuple(this->template access_argument<std::tuple_element_t<Is, Tup>>().parse(Is >= args.size() ? args.first(0) : args.subspan(Is, 1))...);
 
         }(std::make_index_sequence<sizeof...(Arguments)>());
 
@@ -309,7 +309,7 @@ namespace dodo
         if (!(std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results) && ...))
             return detail::make_error("Argument failed to parse");
 
-        return parse_result_type{ std::move(*std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results))... };
+        return parse_result_type{std::move(*std::get<expected<detail::get_parse_result_type<Arguments>, std::string>>(results))...};
     }
 
     template <SingleArgument ... Arguments>
@@ -348,20 +348,20 @@ namespace dodo
     // CompoundParser
 
     template <instantiation_of<CompoundArgument> Arguments, instantiation_of<CompoundOption> Options>
-    auto CompoundParser<Arguments, Options>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
+    auto CompoundParser<Arguments, Options>::parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>
     {
-        auto const first_option = std::find_if(argv, argv + argc, [](char const arg[]) { return arg[0] == '-'; });
-        int const positional_arg_count = int(first_option - argv);
+        auto const first_option = std::find_if(args.begin(), args.end(), [](std::string_view arg) { return arg[0] == '-'; });
+        size_t const positional_arg_count = size_t(first_option - args.begin());
 
-        auto args = Arguments::parse(positional_arg_count, argv);
-        if (!args)
-            return Error(std::move(args.error()));
+        auto parsed_args = Arguments::parse(args.first(positional_arg_count));
+        if (!parsed_args)
+            return Error(std::move(parsed_args.error()));
 
-        auto opts = Options::parse(argc - positional_arg_count, first_option);
+        auto opts = Options::parse(args.last(args.size() - positional_arg_count));
         if (!opts)
             return Error(std::move(opts.error()));
 
-        return parse_result_type{ std::move(*args), std::move(*opts) };
+        return parse_result_type{std::move(*parsed_args), std::move(*opts)};
     }
 
     template <instantiation_of<CompoundArgument> Arguments, instantiation_of<CompoundOption> Options>
@@ -448,13 +448,13 @@ namespace dodo
     namespace detail
     {
         template <CommandType Next, CommandType ... Rest, CommandType ... Commands>
-        constexpr auto parse_impl(CommandSelector<Commands...> const & commands, int argc, char const * const argv[]) noexcept
+        constexpr auto parse_impl(CommandSelector<Commands...> const & commands, ArgsView args) noexcept
             -> expected<typename CommandSelector<Commands...>::parse_result_type, std::string>
         {
             Next const & next = commands.access_command<Next>();
-            if (next.match(argv[0]))
+            if (next.match(args[0]))
             {
-                auto result = next.parse_command(argc, argv);
+                auto result = next.parse_command(args);
                 if (!result)
                     return Error(std::move(result.error()));
                 else
@@ -463,20 +463,20 @@ namespace dodo
             else
             {
                 if constexpr (sizeof...(Rest) > 0)
-                    return dodo::detail::parse_impl<Rest...>(commands, argc, argv);
+                    return dodo::detail::parse_impl<Rest...>(commands, args);
                 else
-                    return detail::make_error("Unrecognized command \"", argv[0], '"');
+                    return detail::make_error("Unrecognized command \"", args[0], '"');
             }
         }
     }
 
     template <CommandType ... Commands>
-    auto CommandSelector<Commands...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
+    auto CommandSelector<Commands...>::parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>
     {
-        if (argc <= 0)
+        if (args.size() <= 0)
             return detail::make_error("Expected command.");
 
-        return dodo::detail::parse_impl<Commands...>(*this, argc, argv);
+        return dodo::detail::parse_impl<Commands...>(*this, args);
     }
 
     template <CommandType ... Commands>
@@ -486,9 +486,9 @@ namespace dodo
     }
 
     template <Parser P>
-    constexpr auto Command<P>::parse_command(int argc, char const * const argv[]) const noexcept
+    constexpr auto Command<P>::parse_command(ArgsView args) const noexcept
     {
-        return parser.parse(argc - 1, argv + 1);
+        return parser.parse(args.last(args.size() - 1));
     }
 
     template <Parser P>
@@ -532,26 +532,26 @@ namespace dodo
     }
 
     template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
-    auto CommandWithSharedOptions<SharedOptions, Commands>::parse(int argc, char const * const argv[]) const noexcept
+    auto CommandWithSharedOptions<SharedOptions, Commands>::parse(ArgsView args) const noexcept
         -> expected<parse_result_type, std::string>
     {
-        auto const it = std::find_if(argv, argv + argc, [this](char const * arg) { return commands.match(arg); });
+        auto const it = std::find_if(args.begin(), args.end(), [this](std::string_view arg) { return commands.match(arg); });
 
         // Command not found.
-        if (it == argv + argc)
+        if (it == args.end())
             return detail::make_error("Expected command.");
 
-        int const arguments_until_command = int(it - argv);
+        size_t const arguments_until_command = size_t(it - args.begin());
 
-        auto shared_arguments = shared_options.parse(arguments_until_command, argv);
+        auto shared_arguments = shared_options.parse(args.first(arguments_until_command));
         if (!shared_arguments)
             return Error(std::move(shared_arguments.error()));
 
-        auto command = commands.parse(argc - arguments_until_command, it);
+        auto command = commands.parse(args.last(args.size() - arguments_until_command));
         if (!command)
             return Error(std::move(command.error()));
 
-        return parse_result_type{ std::move(*shared_arguments), std::move(*command) };
+        return parse_result_type{std::move(*shared_arguments), std::move(*command)};
     }
 
     template <Parser SharedOptions, instantiation_of<CommandSelector> Commands>
@@ -582,12 +582,12 @@ namespace dodo
     }
 
     template <instantiation_of<CommandSelector> Commands, Parser ImplicitCommand>
-    auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(int argc, char const * const argv[]) const noexcept
+    auto CommandWithImplicitCommand<Commands, ImplicitCommand>::parse(ArgsView args) const noexcept
         -> expected<parse_result_type, std::string>
     {
-        if (commands.match(argv[0]))
+        if (commands.match(args[0]))
         {
-            auto parsed_command = commands.parse(argc, argv);
+            auto parsed_command = commands.parse(args);
             if (!parsed_command)
                 return Error(std::move(parsed_command.error()));
             else
@@ -595,7 +595,7 @@ namespace dodo
         }
         else
         {
-            auto parsed_implicit_command = implicit_command.parse(argc, argv);
+            auto parsed_implicit_command = implicit_command.parse(args);
             if (!parsed_implicit_command)
                 return Error(std::move(parsed_implicit_command.error()));
             else

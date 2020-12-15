@@ -2,7 +2,7 @@
 
 ![Dodo](https://upload.wikimedia.org/wikipedia/commons/thumb/9/94/De_Alice%27s_Abenteuer_im_Wunderland_Carroll_pic_10.jpg/800px-De_Alice%27s_Abenteuer_im_Wunderland_Carroll_pic_10.jpg)
 
-Dodo is a fully featured C++20 command line parsing library, with support for positional arguments, named options and git style commands. The library allows for declaratively expressing a command line parser function. This is a function that maps (argc, argv) to an anonymous structure declared by the library based on the parser function declaration that contains the variables read from the command line. It supports optional arguments with default values, conditions to check if an option has a correct value, customization points for parsing user defined types, and declaring subparsers for commands like git does (git commit, git push...). The name just follows the trend of giving animal names to software projects.
+Dodo is a C++20 command line parsing library, with support for positional arguments, named options and git style commands. The library allows for declaratively expressing a command line parser function. This is a function that maps (argc, argv) to an anonymous structure declared by the library based on the parser function declaration that contains the variables read from the command line. It supports optional arguments with default values, conditions to check if an option has a correct value, customization points for parsing user defined types, and declaring subparsers for commands like git does (git commit, git push...). The name just follows the trend of giving animal names to software projects.
 
 ## Compliance
 
@@ -60,7 +60,7 @@ constexpr auto cli =
 The parser can be used directly like this:
 
 ```cpp
-auto const result = cli.parse(argc, argv);
+auto const result = cli.parse(dodo::Args(argc, argv));
 if (result)
 	do_stuff_with(result->width);
 else
@@ -88,7 +88,7 @@ constexpr auto cli
 In this case the structure returned by parse will contain the members `width`, `height`, `fullscreen` and `username`.
 
 ```cpp
-auto const args = cli.parse(argc, argv);
+auto const args = cli.parse(dodo::Args(argc, argv));
 if (!result)
 {
 	std::cerr << result.error() << '\n';
@@ -332,7 +332,7 @@ constexpr auto cli =
 In order to access the results, the best option is to visit the variant. `dodo::overload` is a very convenient way of defining a visitor inline from several lambdas.
 
 ```cpp
-auto const args = cli.parse(argc, argv);
+auto const args = cli.parse(dodo::Args(argc, argv));
 if (!result)
 {
 	std::cerr << result.error() << '\n';
@@ -381,7 +381,7 @@ constexpr auto cli =
 			.by_default(10.0f)
 	);
 	
-auto const args = cli.parse(argc, argv);
+auto const args = cli.parse(dodo::Args(argc, argv));
 
 if (args->shared_options.dry_run)
 {
@@ -413,7 +413,7 @@ constexpr auto cli
 		("Time to wait for response before failing the attempt")
 		.by_default(10.0f);
 	
-auto const args = cli.parse(argc, argv);
+auto const args = cli.parse(dodo::Args(argc, argv));
 
 std::visit(dodo::overload
 (

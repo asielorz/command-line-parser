@@ -9,11 +9,9 @@ using namespace std::literals;
 namespace tests
 {
     template <dodo::Parser P>
-    constexpr auto parse(P parser, std::initializer_list<char const *> args) noexcept
+    constexpr auto parse(P parser, std::initializer_list<std::string_view> args) noexcept
     {
-        int const argc = int(args.size());
-        auto const argv = std::data(args);
-        return parser.parse(argc, argv);
+        return parser.parse(std::span<std::string_view const>(args));
     }
 
     template <typename T>
@@ -29,7 +27,7 @@ namespace tests
         using parse_result_type = ShowHelp;
 
         constexpr bool match(std::string_view text) const noexcept { return text == "--help" || text == "-h" || text == "-?" || text == "help"; }
-        dodo::expected<ShowHelp, std::string> parse_command(int argc, char const * const argv[]) const noexcept { static_cast<void>(argc, argv); return ShowHelp(); }
+        dodo::expected<ShowHelp, std::string> parse_command(dodo::ArgsView args) const noexcept { static_cast<void>(args); return ShowHelp(); }
         std::string to_string(int indentation) const noexcept
         {
             std::string result;
@@ -1001,4 +999,11 @@ TEST_CASE("A positional argument and a flag")
 
         REQUIRE(!options.has_value());
     }
+}
+
+TEST_CASE("Prueba")
+{
+    std::vector<std::string_view> v;
+    auto s = std::span<std::string_view>(v);
+    auto s2 = std::span<std::string_view>(v.begin(), v.end());
 }

@@ -4,6 +4,7 @@
 #include <charconv>
 #include <string>
 #include <optional>
+#include <vector>
 
 namespace dodo
 {
