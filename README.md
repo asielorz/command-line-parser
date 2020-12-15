@@ -4,7 +4,7 @@
 
 Dodo is a C++20 command line parsing library, with support for positional arguments, named options and git style commands. The library allows for declaratively expressing a command line parser function. This is a function that maps (argc, argv) to an anonymous structure declared by the library based on the parser function declaration that contains the variables read from the command line. It supports optional arguments with default values, conditions to check if an option has a correct value, customization points for parsing user defined types, and declaring subparsers for commands like git does (git commit, git push...).
 
-The name just follows the trend of giving animal names to software projects.
+The name just follows the trend of giving animal names to software projects. And I like dodo birds. They are funny.
 
 The design is heavily inspired by the library [Clara](https://github.com/catchorg/Clara) by Phil Nash, with modifications of my own to make it more functional.
 
