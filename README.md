@@ -454,7 +454,7 @@ std::visit(some_visitor, args->command);
 
 ### Parsing a command line string
 
-It is possible to construct a dodo::Args object from a single string of space separated arguments. This is useful for people implementing their own editors where the user can type a command in order to invoke it. For example, Unreal Engine has a terminal that can be opened with the `~` key, where the user can type a command to have the engine execute it. This way, the user can use dodo not only for the arguments that are input to main, but also for any command inputed in string form. It supports Linux style scaping with backslash `\`, 'single quotes' and "double quotes".
+It is possible to construct a dodo::Args object from a single string of space separated arguments. This is useful for people implementing their own editors where the user can type a command in order to invoke it. For example, Unreal Engine has a terminal that can be opened with the `~` key, where the user can type a command to have the engine execute it. This way, the user can use dodo not only for the arguments that are input to main, but also for any command inputed in string form. It supports Linux style escaping with backslash `\`, 'single quotes' and "double quotes".
 
 There are two versions of the function, `dodo::Args::from_command_line` and `dodo::Args::from_command_line_skip_program_name`. The second will skip the first argument.
 
