@@ -1000,10 +1000,3 @@ TEST_CASE("A positional argument and a flag")
         REQUIRE(!options.has_value());
     }
 }
-
-TEST_CASE("Prueba")
-{
-    std::vector<std::string_view> v;
-    auto s = std::span<std::string_view>(v);
-    auto s2 = std::span<std::string_view>(v.begin(), v.end());
-}
