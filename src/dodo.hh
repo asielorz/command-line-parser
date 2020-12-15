@@ -3,6 +3,7 @@
 #include "parse_traits.hh"
 #include "expected.hh"
 #include <concepts>
+#include <span>
 #include <type_traits>
 
 namespace dodo
@@ -42,6 +43,23 @@ namespace dodo
     {
         constexpr explicit overload(Ts ... ts) noexcept : Ts(ts)... {}
         using Ts::operator()...;
+    };
+
+    struct Args : public std::vector<std::string_view>
+    {
+        explicit Args(std::vector<std::string_view> args) noexcept : std::vector<std::string_view>(args) {}
+
+        // Same as Args::from_argc_argv_skip_program_name(argc, argv)
+        explicit Args(int argc, char const * const argv[]) noexcept : std::vector<std::string_view>(argv + 1, argv + argc) {}
+
+        static Args from_argc_argv(int argc, char const * const argv[]) noexcept { return Args(std::vector<std::string_view>(argv, argv + argc)); }
+        static Args from_argc_argv_skip_program_name(int argc, char const * const argv[]) noexcept { return Args(argc, argv); }
+    };
+
+    struct ArgsView : public std::span<std::string_view>
+    {
+        ArgsView(Args const & args) noexcept : std::span<std::string_view>(args.begin(), args.end()) {}
+        constexpr ArgsView(std::span<std::string_view> args) noexcept : std::span<std::string_view>(args) {}
     };
 
     template <typename T>
@@ -242,7 +260,7 @@ namespace dodo
         explicit constexpr OptionInterface(Base base) noexcept : Base(base) {}
 
         auto parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>;
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<typename Base::parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const requires HasDescription<Base>;
 
         constexpr OptionInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
@@ -326,7 +344,7 @@ namespace dodo
         explicit constexpr PositionalArgumentInterface(Base base) noexcept : Base(base) {}
 
         auto parse(std::string_view matched_arg) const noexcept -> expected<typename Base::parse_result_type, std::string>;
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<typename Base::parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const requires HasDescription<Base>;
 
         constexpr PositionalArgumentInterface<WithDescription<Base>> operator () (std::string_view description) const noexcept requires(!HasDescription<Base>)
@@ -383,7 +401,7 @@ namespace dodo
 
         struct parse_result_type : public detail::get_parse_result_type<Options>... {};
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args]) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         template <SingleOption T>
@@ -405,7 +423,7 @@ namespace dodo
 
         struct parse_result_type : public detail::get_parse_result_type<Arguments>... {};
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         template <SingleArgument T>
@@ -427,7 +445,7 @@ namespace dodo
 
         struct parse_result_type : public detail::get_parse_result_type<Arguments>, public detail::get_parse_result_type<Options> {};
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const;
 
         constexpr Options const & access_options() const noexcept
@@ -484,8 +502,8 @@ namespace dodo
     constexpr NoopParser<Tag> noop_parser = NoopParser<Tag>();
 
     template <typename T>
-    concept Parser = requires(T const parser, int argc, char const * const * argv) { 
-        {parser.parse(argc, argv)} -> std::same_as<expected<typename T::parse_result_type, std::string>>; 
+    concept Parser = requires(T const parser, ArgsView args) {
+        {parser.parse(args)} -> std::same_as<expected<typename T::parse_result_type, std::string>>; 
     };
 
     template <Parser P>
@@ -500,7 +518,7 @@ namespace dodo
         {}
 
         constexpr bool match(std::string_view text) const noexcept { return text == name; }
-        constexpr auto parse_command(int argc, char const * const argv[]) const noexcept;
+        constexpr auto parse_command(ArgsView args) const noexcept;
         std::string to_string(int indentation) const noexcept;
 
         std::string_view name;
@@ -509,10 +527,10 @@ namespace dodo
     };
 
     template <typename T>
-    concept CommandType = requires(T t, std::string_view text, int argc, char const * const * argv, int indentation) 
+    concept CommandType = requires(T t, std::string_view text, ArgsView args, int indentation)
     {
         {t.match(text)} -> std::same_as<bool>;
-        {t.parse_command(argc, argv)} -> std::same_as<expected<typename T::parse_result_type, std::string>>;
+        {t.parse_command(args)} -> std::same_as<expected<typename T::parse_result_type, std::string>>;
         {t.to_string(indentation)} -> std::same_as<std::string>;
     };
 
@@ -523,7 +541,7 @@ namespace dodo
 
         constexpr explicit CommandSelector(Commands... commands) noexcept : Commands(commands)... {}
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
 
         constexpr bool match(std::string_view text) const noexcept { return (access_command<Commands>().match(text) || ...); }
 
@@ -555,7 +573,7 @@ namespace dodo
             typename Commands::parse_result_type command;
         };
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const noexcept;
 
         SharedOptions shared_options;
@@ -586,7 +604,7 @@ namespace dodo
 
         using parse_result_type = either<typename Commands::parse_result_type, typename ImplicitCommand::parse_result_type>;
 
-        auto parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>;
+        auto parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>;
         std::string to_string(int indentation = 0) const noexcept;
 
         Commands commands;

@@ -46,25 +46,25 @@ namespace dodo
     }
 
     template <typename Base>
-    auto OptionInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>
+    auto OptionInterface<Base>::parse(ArgsView args) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
-        if (argc == 0)
+        if (args.size() == 0)
         {
             if constexpr (HasDefaultValue<Base>)
                 return detail::make_parse_result<typename Base::parse_result_type>(this->default_value);
             else
                 return detail::make_error("No matching argument for option ", this->patterns_to_string());
         }
-        else if (argc == 1)
+        else if (args.size() == 1)
         {
-            std::optional<std::string_view> const matched = this->match(argv[0]);
+            std::optional<std::string_view> const matched = this->match(args[0]);
             if (matched)
                 return this->parse(*matched);
         }
 
         return detail::make_error(
             "No matching argument for option ", this->patterns_to_string(), "\n"
-            "Unrecognized parameter \"", argv[0], '"'
+            "Unrecognized parameter \"", args[0], '"'
         );
     }
 
@@ -139,18 +139,18 @@ namespace dodo
     }
 
     template <typename Base>
-    auto PositionalArgumentInterface<Base>::parse(int argc, char const * const argv[]) const noexcept -> expected<typename Base::parse_result_type, std::string>
+    auto PositionalArgumentInterface<Base>::parse(ArgsView args) const noexcept -> expected<typename Base::parse_result_type, std::string>
     {
-        if (argc == 0)
+        if (args.size() == 0)
         {
             if constexpr (HasDefaultValue<Base>)
                 return detail::make_parse_result<typename Base::parse_result_type>(this->default_value);
             else
                 return detail::make_error("Missing argument ", this->name);
         }
-        else if (argc == 1)
+        else if (args.size() == 1)
         {
-            return this->parse(argv[0]);
+            return this->parse(args[0]);
         }
         else
         {
@@ -228,7 +228,7 @@ namespace dodo
     }
 
     template <SingleOption ... Options>
-    auto CompoundOption<Options...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
+    auto CompoundOption<Options...>::parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>
     {
         std::tuple<option_parse_result<Options>...> option_parse_results;
 
@@ -236,12 +236,12 @@ namespace dodo
         {
             bool const argument_parsed = (try_parse_argument(
                 access_option<Options>(),
-                argv[i],
+                args[i],
                 std::get<option_parse_result<Options>>(option_parse_results)
             ) || ...);
 
             if (!argument_parsed)
-                return detail::make_error("Unrecognized argument \"", argv[i], '"');
+                return detail::make_error("Unrecognized argument \"", args[i], '"');
         }
 
         (complete_with_default_value(access_option<Options>(), std::get<option_parse_result<Options>>(option_parse_results)), ...);
@@ -293,15 +293,15 @@ namespace dodo
     // CompoundArgument
 
     template <SingleArgument ... Arguments>
-    auto CompoundArgument<Arguments...>::parse(int argc, char const * const argv[]) const noexcept -> expected<parse_result_type, std::string>
+    auto CompoundArgument<Arguments...>::parse(ArgsView args) const noexcept -> expected<parse_result_type, std::string>
     {
-        if (argc > sizeof...(Arguments))
-            return detail::make_error("Too many arguments. Provided", std::to_string(argc), "arguments. Program expects ", std::to_string(sizeof...(Arguments)));
+        if (args.size() > sizeof...(Arguments))
+            return detail::make_error("Too many arguments. Provided", std::to_string(args.size()), "arguments. Program expects ", std::to_string(sizeof...(Arguments)));
 
-        auto const results = [this, argc, argv]<size_t ... Is>(std::index_sequence<Is...>)
+        auto const results = [this, args]<size_t ... Is>(std::index_sequence<Is...>)
         {
             using Tup = std::tuple<Arguments...>;
-            return std::make_tuple(this->template access_argument<std::tuple_element_t<Is, Tup>>().parse(Is >= argc ? 0 : 1, argv + Is)...);
+            return std::make_tuple(this->template access_argument<std::tuple_element_t<Is, Tup>>().parse(Is >= args.size() ? 0 : 1, argv + Is)...);
 
         }(std::make_index_sequence<sizeof...(Arguments)>());
 
