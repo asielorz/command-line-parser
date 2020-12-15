@@ -54,6 +54,13 @@ namespace dodo
 
         static Args from_argc_argv(int argc, char const * const argv[]) noexcept { return Args(std::vector<std::string_view>(argv, argv + argc)); }
         static Args from_argc_argv_skip_program_name(int argc, char const * const argv[]) noexcept { return Args(argc, argv); }
+
+        static Args from_command_line(std::string command_line);
+        static Args from_command_line_skip_program_name(std::string command_line);
+
+    private:
+        std::string buffer;
+        Args() noexcept = default;
     };
 
     struct ArgsView : public std::span<std::string_view const>

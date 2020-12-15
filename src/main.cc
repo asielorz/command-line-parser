@@ -1000,3 +1000,37 @@ TEST_CASE("A positional argument and a flag")
         REQUIRE(!options.has_value());
     }
 }
+
+TEST_CASE("Converting a command line in a single string into separate arguments")
+{
+    using namespace std::literals;
+
+    CHECK(dodo::Args::from_command_line("foo bar baz quux") == v{"foo"sv, "bar"sv, "baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo \"bar baz\" quux") == v{"foo"sv, "bar baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo 'bar baz' quux") == v{"foo"sv, "bar baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo \"bar   baz\" quux") == v{"foo"sv, "bar   baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo 'bar   baz' quux") == v{"foo"sv, "bar   baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo \n  bar   baz  \t  quux") == v{"foo"sv, "bar"sv, "baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line("foo --bar='3 4 5 6'") == v{"foo"sv, "--bar=3 4 5 6"sv});
+    CHECK(dodo::Args::from_command_line("foo --bar=\"3 4 5 6\"") == v{"foo"sv, "--bar=3 4 5 6"sv});
+    CHECK(dodo::Args::from_command_line("foo --bar='\"3 4 5 6\"'") == v{"foo"sv, "--bar=\"3 4 5 6\""sv});
+    CHECK(dodo::Args::from_command_line("foo --bar=\"'3 4 5 6'\"") == v{"foo"sv, "--bar='3 4 5 6'"sv});
+    CHECK(dodo::Args::from_command_line("  foo \n  bar   baz  \t  quux") == v{"foo"sv, "bar"sv, "baz"sv, "quux"sv});
+}
+
+TEST_CASE("Converting a command line in a single string into separate arguments, and skipping the first")
+{
+    using namespace std::literals;
+
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo bar baz quux") == v{"bar"sv, "baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo \"bar baz\" quux") == v{"bar baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo 'bar baz' quux") == v{"bar baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo \"bar   baz\" quux") == v{"bar   baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo 'bar   baz' quux") == v{"bar   baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo \n  bar   baz  \t  quux") == v{"bar"sv, "baz"sv, "quux"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo --bar='3 4 5 6'") == v{"--bar=3 4 5 6"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo --bar=\"3 4 5 6\"") == v{"--bar=3 4 5 6"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo --bar='\"3 4 5 6\"'") == v{"--bar=\"3 4 5 6\""sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("foo --bar=\"'3 4 5 6'\"") == v{"--bar='3 4 5 6'"sv});
+    CHECK(dodo::Args::from_command_line_skip_program_name("  foo \n  bar   baz  \t  quux") == v{"bar"sv, "baz"sv, "quux"sv});
+}

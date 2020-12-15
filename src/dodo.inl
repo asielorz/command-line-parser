@@ -17,7 +17,105 @@ namespace dodo
             return result;
         }
 
+        template <std::predicate<char> P>
+        inline void next_word_unscaped(std::string_view in, size_t & i, char out[], size_t & out_i, P is_delimiter)
+        {
+            while (i < in.size())
+            {
+                char const c = in[i++];
+
+                if (is_delimiter(c))
+                    break;
+                else
+                    out[out_i++] = c;
+            }
+        }
+
+        template <std::predicate<char> P>
+        inline void next_word(std::string_view in, size_t & i, char out[], size_t & out_i, P is_delimiter)
+        {
+            while (i < in.size())
+            {
+                char const c = in[i++];
+
+                if (is_delimiter(c))
+                    break;
+
+                // Escaping with \ backslash
+                else if (c == '\\')
+                {
+                    out[out_i++] = in[i++];
+                }
+                // Escaping with "double quotes" or 'single quotes'
+                else if (c == '"')
+                {
+                    next_word_unscaped(in, i, out, out_i, [](char c) { return c == '"'; });
+                }
+                else if (c == '\'')
+                {
+                    next_word_unscaped(in, i, out, out_i, [](char c) { return c == '\''; });
+                }
+                else
+                {
+                    out[out_i++] = c;
+                }
+            }
+        }
+
     } // namespace detail
+
+    inline Args Args::from_command_line(std::string command_line)
+    {
+        Args args;
+        args.buffer = std::move(command_line);
+
+        size_t i = 0;
+        size_t out_i = 0;
+
+        while (i < args.buffer.size())
+        {
+            size_t const next_word_start = out_i;
+            detail::next_word(args.buffer, i, args.buffer.data(), out_i, [](char c) { return c == ' ' || c == '\t' || c == '\n'; });
+            size_t const next_word_end = out_i;
+
+            size_t const next_word_length = next_word_end - next_word_start;
+            if (next_word_length > 0)
+                args.emplace_back(args.buffer.data() + next_word_start, next_word_length);
+        }
+
+        return args;
+    }
+
+    inline Args Args::from_command_line_skip_program_name(std::string command_line)
+    {
+        Args args;
+        args.buffer = std::move(command_line);
+
+        size_t i = 0;
+        size_t out_i = 0;
+
+        constexpr auto is_whitespace = [](char c) { return c == ' ' || c == '\t' || c == '\n'; };
+
+        {
+            char throwaway_buffer[1024];
+            size_t throwaway_out_i = 0;
+            while (throwaway_out_i == 0)
+                detail::next_word(args.buffer, i, throwaway_buffer, throwaway_out_i, is_whitespace);
+        }
+
+        while (i < args.buffer.size())
+        {
+            size_t const next_word_start = out_i;
+            detail::next_word(args.buffer, i, args.buffer.data(), out_i, is_whitespace);
+            size_t const next_word_end = out_i;
+
+            size_t const next_word_length = next_word_end - next_word_start;
+            if (next_word_length > 0)
+                args.emplace_back(args.buffer.data() + next_word_start, next_word_length);
+        }
+
+        return args;
+    }
 
     //*****************************************************************************************************************************************************
     // OptionInterface
