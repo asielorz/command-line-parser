@@ -12,6 +12,8 @@ The design is heavily inspired by the library [Clara](https://github.com/catchor
 
 The library in implemented in standard C++20 and currently (as of 12-12-2020) only builds on latest Visual Studio 2019 (Version 16.8). GCC and clang both reject the code. Clang because lambdas in unevaluated contexts have not been implemented yet. GCC because it doesn't allow declaring new types inside a decltype expression, which is necessary for the interface of the library.
 
+This library may abuse macros and template metaprogramming to be able to offer its interface. Since compiler implementation slightly varies at corner cases of the language accross different compilers and versions, I would not advise using dodo for a commercial product where stability over a long period of time and a wide variety of platforms is a priority. If that is your case, please do consider looking for something else. [Lyra](https://github.com/bfgroup/Lyra) is a great command line parsing library in C++11 that supports the needs of most programs and is more likely to perform reliably. Consider dodo more like an exercise on new features of C++ and on pushing the expressive power of the language.
+
 ## License
 
 Dodo is distributed under the MIT software licence. (See accompanying file LICENSE.txt)
@@ -34,7 +36,7 @@ Dodo is distributed under the MIT software licence. (See accompanying file LICEN
 
 - Validation functions for arguments that limit the values they can take.
 
-- Automatic generation of --help text from the parser function.
+- Automatic generation of `--help` text from the parser function.
 
 - Command parsers, defined as a variant of the arguments taken by the parser of each of the commands.
 
